@@ -3,16 +3,24 @@
 # setup.sh - v8: Selective and scalable installer for the tool suite.
 # Installs all or selected tools from the 'tools/' directory or root.
 
-set -euo pipefail
+set -eo pipefail
 
 # --- Configuration & Colors ---
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+# Handle case when script is piped from curl (BASH_SOURCE may be unbound)
+if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ -f "${BASH_SOURCE[0]}" ]]; then
+    SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+else
+    # Fallback for piped execution - use current directory
+    SCRIPT_DIR="${PWD:-$(pwd)}"
+fi
 BIN_DIR="/usr/local/bin"
 MAN_DIR="/usr/share/man/man1"
 TOOLS_DIR="$SCRIPT_DIR/tools"
 MAN_PAGES_DIR="$SCRIPT_DIR/man"
 # Support ipcheck in root directory as well
 IPCHECK_SCRIPT="$SCRIPT_DIR/ipcheck"
+# Flag to track if we downloaded ipcheck
+DOWNLOADED_IPCHECK=false
 
 # Using tput for better compatibility
 if [[ -t 1 ]]; then
@@ -161,6 +169,24 @@ do_install() {
         # Check for ipcheck in root
         if [[ -f "$IPCHECK_SCRIPT" ]] && [[ -x "$IPCHECK_SCRIPT" ]]; then
             tools_to_install+=("ipcheck")
+        else
+            # If ipcheck not found locally, download from GitHub
+            echo -e "${YELLOW}ipcheck not found locally. Downloading from GitHub...${NC}"
+            local temp_dir
+            temp_dir=$(mktemp -d)
+            trap "rm -rf '$temp_dir'" EXIT
+            
+            if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/ipcheck" -o "$temp_dir/ipcheck" 2>/dev/null; then
+                chmod +x "$temp_dir/ipcheck"
+                IPCHECK_SCRIPT="$temp_dir/ipcheck"
+                DOWNLOADED_IPCHECK=true
+                tools_to_install+=("ipcheck")
+                echo -e "${GREEN}✓ Downloaded ipcheck${NC}"
+            else
+                echo -e "${RED}Error: Failed to download ipcheck from GitHub.${NC}" >&2
+                echo -e "${YELLOW}Please make sure you have internet connection and the repository is accessible.${NC}" >&2
+                exit 1
+            fi
         fi
         # Check for tools in tools/ directory
         if [ -d "$TOOLS_DIR" ]; then
@@ -194,6 +220,19 @@ do_install() {
             echo -e "  ➡️  Installing man page for '${YELLOW}ipcheck${NC}'..."
             install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
             gzip -f "$MAN_DIR/ipcheck.1"
+        else
+            # Try to download man page from GitHub if not found locally
+            echo -e "  ➡️  Downloading man page for '${YELLOW}ipcheck${NC}' from GitHub..."
+            local temp_man
+            temp_man=$(mktemp)
+            if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/man/ipcheck.1" -o "$temp_man" 2>/dev/null; then
+                install -Dm 644 "$temp_man" "$MAN_DIR/ipcheck.1"
+                gzip -f "$MAN_DIR/ipcheck.1"
+                rm -f "$temp_man"
+                echo -e "${GREEN}✓ Man page installed${NC}"
+            else
+                echo -e "${YELLOW}⚠️  Could not download man page (optional)${NC}"
+            fi
         fi
     fi
     
