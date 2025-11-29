@@ -202,14 +202,14 @@ prompt_and_save_keys() {
     local CONFIG_FILE_PATH
     if [[ -z "$custom_path" ]]; then
         CONFIG_FILE_PATH="$default_config_file"
-    else
-        # Expand ~ and resolve path
-        CONFIG_FILE_PATH=$(eval echo "$custom_path")
-        # If it's a directory, append keys.conf
-        if [[ -d "$CONFIG_FILE_PATH" ]]; then
-            CONFIG_FILE_PATH="$CONFIG_FILE_PATH/keys.conf"
+        else
+            # Expand ~ and resolve path
+            CONFIG_FILE_PATH=$(eval echo "$custom_path")
+            # If it's a directory, append keys.conf (remove trailing slash first)
+            if [[ -d "$CONFIG_FILE_PATH" ]]; then
+                CONFIG_FILE_PATH="${CONFIG_FILE_PATH%/}/keys.conf"
+            fi
         fi
-    fi
     
     CONFIG_FILE_PATH_FOR_ROLLBACK="$CONFIG_FILE_PATH"
     local CONFIG_DIR
@@ -375,9 +375,9 @@ show_post_install_warnings() {
         else
             # Expand ~ and resolve path
             config_to_check=$(eval echo "$custom_check_path")
-            # If it's a directory, append keys.conf
+            # If it's a directory, append keys.conf (remove trailing slash first)
             if [[ -d "$config_to_check" ]]; then
-                config_to_check="$config_to_check/keys.conf"
+                config_to_check="${config_to_check%/}/keys.conf"
             fi
             check_existing=true
             echo -e "${BLUE}✓ Using custom path: ${config_to_check}${NC}"
