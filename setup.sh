@@ -15,10 +15,12 @@ else
 fi
 BIN_DIR="/usr/local/bin"
 MAN_DIR="/usr/share/man/man1"
+LIB_DIR="/usr/local/lib/ipcheck"
 TOOLS_DIR="$SCRIPT_DIR/tools"
 MAN_PAGES_DIR="$SCRIPT_DIR/man"
 # Support ipcheck in root directory as well
 IPCHECK_SCRIPT="$SCRIPT_DIR/ipcheck"
+IPCHECK_LIB_DIR="$SCRIPT_DIR/lib"
 # Flag to track if we downloaded ipcheck
 DOWNLOADED_IPCHECK=false
 DOWNLOADED_TEMP_DIR=""  # Store temp directory for cleanup

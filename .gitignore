@@ -11,6 +11,11 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.old
+*~
+ipcheck_new
+ipcheck.old
 /tmp/
 .DS_Store
 
