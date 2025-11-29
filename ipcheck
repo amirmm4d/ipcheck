@@ -1384,7 +1384,6 @@ generate_xml_report() {
 # --- Interactive Menu Functions ---
 
 show_logo() {
-    clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║                                                              ║"
@@ -1403,6 +1402,7 @@ show_logo() {
 }
 
 show_main_menu() {
+    clear
     show_logo
     
     # Welcome message with beautiful design
@@ -1445,19 +1445,21 @@ show_main_menu() {
     
     # Read from terminal to ensure we get user input
     local main_choice=""
+    # Force read from /dev/tty - this ensures we wait for user input
     if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
         exec 3< /dev/tty
-        read -r main_choice <&3
+        IFS= read -r main_choice <&3
         exec 3<&-
     elif [[ -t 0 ]]; then
-        read -r main_choice
+        IFS= read -r main_choice
     else
-        read -r main_choice < /dev/tty 2>/dev/null || read -r main_choice
+        # Fallback: try to read from /dev/tty
+        exec 3< /dev/tty 2>/dev/null && IFS= read -r main_choice <&3 && exec 3<&- || IFS= read -r main_choice || main_choice=""
     fi
     
-    # Trim whitespace
-    main_choice=$(echo "$main_choice" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    echo "$main_choice"
+    # Trim whitespace and newlines
+    main_choice=$(printf '%s' "$main_choice" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    printf '%s\n' "$main_choice"
 }
 
 show_ip_check_menu() {
@@ -1639,6 +1641,9 @@ interactive_menu() {
     while true; do
         local main_choice
         main_choice=$(show_main_menu)
+        
+        # Trim and validate input
+        main_choice=$(printf '%s' "$main_choice" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
         case "$main_choice" in
             1)
