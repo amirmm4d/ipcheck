@@ -335,58 +335,65 @@ show_post_install_warnings() {
     echo -e "\n${YELLOW}------------------------- ATTENTION -------------------------${NC}"
     echo -e "${YELLOW}Some API keys were not provided. Some tools may have limited functionality.${NC}"
     
-    # Ask user if they want to check an existing config file
+    # Use the config file path that was already set during installation, or ask user
     local USER_HOME
     USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
     local default_config_file="$USER_HOME/.config/ipcheck/keys.conf"
     
-    local check_existing=false
     local config_to_check=""
+    local check_existing=false
     
-    # Always try to read from terminal if we're not in non-interactive mode
-    if [[ "$NON_INTERACTIVE" != "true" ]]; then
-        echo -e "\n${BLUE}Do you want to check an existing configuration file?${NC}"
-        echo -e "Default: ${BLUE}$default_config_file${NC}"
-        echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
-        
-        # Force read from /dev/tty to ensure we get user input
-        local custom_check_path=""
-        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            exec 3< /dev/tty
-            read -r custom_check_path <&3
-            exec 3<&-
-        elif [[ -t 0 ]]; then
-            read -r custom_check_path
+    # If CONFIG_FILE_PATH_FOR_ROLLBACK is set, use it (from prompt_and_save_keys)
+    if [[ -n "$CONFIG_FILE_PATH_FOR_ROLLBACK" ]] && [[ -f "$CONFIG_FILE_PATH_FOR_ROLLBACK" ]]; then
+        config_to_check="$CONFIG_FILE_PATH_FOR_ROLLBACK"
+        check_existing=true
+        echo -e "\n${BLUE}Checking the configuration file that was just created: ${config_to_check}${NC}"
+    else
+        # Ask user if they want to check an existing config file
+        if [[ "$NON_INTERACTIVE" != "true" ]]; then
+            echo -e "\n${BLUE}Do you want to check an existing configuration file?${NC}"
+            echo -e "Default: ${BLUE}$default_config_file${NC}"
+            echo -ne "${YELLOW}Enter custom path (or press Enter for default, 'skip' to skip): ${NC}"
+            
+            # Force read from /dev/tty to ensure we get user input
+            local custom_check_path=""
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                exec 3< /dev/tty
+                read -r custom_check_path <&3
+                exec 3<&-
+            elif [[ -t 0 ]]; then
+                read -r custom_check_path
+            else
+                # Fallback: try stdin anyway
+                read -r custom_check_path || custom_check_path=""
+            fi
+            
+            # Trim whitespace
+            custom_check_path=$(echo "$custom_check_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
+            if [[ -z "$custom_check_path" ]] || [[ "$custom_check_path" == "" ]]; then
+                config_to_check="$default_config_file"
+                check_existing=true
+                echo -e "${GREEN}✓ Using default path: ${config_to_check}${NC}"
+            elif [[ "$custom_check_path" == "skip" ]] || [[ "$custom_check_path" == "Skip" ]] || [[ "$custom_check_path" == "SKIP" ]]; then
+                check_existing=false
+                echo -e "${YELLOW}⊘ Skipping config file check.${NC}"
+            else
+                # Expand ~ and resolve path
+                config_to_check=$(eval echo "$custom_check_path")
+                # If it's a directory, append keys.conf (remove trailing slash first)
+                if [[ -d "$config_to_check" ]]; then
+                    config_to_check="${config_to_check%/}/keys.conf"
+                fi
+                check_existing=true
+                echo -e "${BLUE}✓ Using custom path: ${config_to_check}${NC}"
+            fi
         else
-            # Fallback: try stdin anyway
-            read -r custom_check_path || custom_check_path=""
-        fi
-        
-        # Trim whitespace
-        custom_check_path=$(echo "$custom_check_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        
-        if [[ -z "$custom_check_path" ]] || [[ "$custom_check_path" == "" ]]; then
+            # Non-interactive mode, use default
+            echo -e "${BLUE}Non-interactive mode: Using default path${NC}"
             config_to_check="$default_config_file"
             check_existing=true
-            echo -e "${GREEN}✓ Using default path: ${config_to_check}${NC}"
-        elif [[ "$custom_check_path" == "skip" ]] || [[ "$custom_check_path" == "Skip" ]] || [[ "$custom_check_path" == "SKIP" ]]; then
-            check_existing=false
-            echo -e "${YELLOW}⊘ Skipping config file check.${NC}"
-        else
-            # Expand ~ and resolve path
-            config_to_check=$(eval echo "$custom_check_path")
-            # If it's a directory, append keys.conf (remove trailing slash first)
-            if [[ -d "$config_to_check" ]]; then
-                config_to_check="${config_to_check%/}/keys.conf"
-            fi
-            check_existing=true
-            echo -e "${BLUE}✓ Using custom path: ${config_to_check}${NC}"
         fi
-    else
-        # Non-interactive mode, use default
-        echo -e "${BLUE}Non-interactive mode: Using default path${NC}"
-        config_to_check="$default_config_file"
-        check_existing=true
     fi
     
     # Check the config file if requested
