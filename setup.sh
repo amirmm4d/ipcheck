@@ -34,6 +34,7 @@ else
 fi
 
 CONFIG_FILE_PATH_FOR_ROLLBACK=""
+NON_INTERACTIVE=false  # Auto-install dependencies without prompting
 
 # --- Helper Functions ---
 
@@ -77,11 +78,16 @@ check_dependencies() {
         return 0
     fi
 
-    read -p "Do you want to try to install missing dependencies automatically? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}🛑 Installation aborted. Please install dependencies manually.${NC}"
-        exit 1
+    # Auto-install if non-interactive mode or stdin is not a terminal
+    if [[ "$NON_INTERACTIVE" == "true" ]] || [[ ! -t 0 ]]; then
+        echo -e "${BLUE}Auto-installing missing dependencies...${NC}"
+    else
+        read -p "Do you want to try to install missing dependencies automatically? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${RED}🛑 Installation aborted. Please install dependencies manually.${NC}"
+            exit 1
+        fi
     fi
 
     if [ -f /etc/os-release ]; then . /etc/os-release; fi
@@ -316,7 +322,7 @@ main() {
     local action="install"
     local tools_arg=""
 
-    # Argument parsing that handles `uninstall` and `--tools` in any order
+    # Argument parsing that handles `uninstall`, `--tools`, `-y`, `--yes` in any order
     local params=()
     while (("$#")); do
         case "$1" in
@@ -332,6 +338,10 @@ main() {
                 echo "${RED}Error: --tools flag requires an argument.${NC}" >&2
                 exit 1
             fi
+            ;;
+        -y|--yes)
+            NON_INTERACTIVE=true
+            shift
             ;;
         -*) # unsupported flags
             echo "${RED}Error: Unsupported flag $1${NC}" >&2
