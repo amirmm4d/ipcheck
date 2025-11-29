@@ -1,20 +1,35 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.2.0
+# ipcheck - Advanced, parallel IP reputation checker v2.2.1
 #
 # This is the main entry point. All functions are loaded from lib/ directory.
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.2.0"
+IPCHECK_VERSION="2.2.1"
 
 # Determine script directory for loading lib files
 # If installed system-wide, use /usr/local/lib/ipcheck, otherwise use local lib/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -d "/usr/local/lib/ipcheck" ]] && [[ "$(readlink -f "${BASH_SOURCE[0]}")" == "/usr/local/bin/ipcheck" ]]; then
-    LIB_DIR="/usr/local/lib/ipcheck"
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+# Resolve symlinks to get actual path
+if command -v readlink >/dev/null 2>&1; then
+    SCRIPT_REAL_PATH=$(readlink -f "$SCRIPT_PATH" 2>/dev/null || readlink "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")
 else
+    SCRIPT_REAL_PATH="$SCRIPT_PATH"
+fi
+
+# Check if installed system-wide
+if [[ "$SCRIPT_REAL_PATH" == "/usr/local/bin/ipcheck" ]] || [[ "$SCRIPT_PATH" == "/usr/local/bin/ipcheck" ]]; then
+    if [[ -d "/usr/local/lib/ipcheck" ]]; then
+        LIB_DIR="/usr/local/lib/ipcheck"
+    else
+        # Fallback to local lib if system lib doesn't exist
+        LIB_DIR="$SCRIPT_DIR/lib"
+    fi
+else
+    # Running from local directory
     LIB_DIR="$SCRIPT_DIR/lib"
 fi
 

@@ -55,6 +55,12 @@ installation_rollback() {
             rm -f "$MAN_DIR/$tool_name.1.gz"
         done
     fi
+    # Remove ipcheck and its lib directory
+    rm -f "$BIN_DIR/ipcheck"
+    rm -f "$MAN_DIR/ipcheck.1.gz"
+    if [[ -d "$LIB_DIR" ]]; then
+        rm -rf "$LIB_DIR"
+    fi
     if [[ -n "$CONFIG_FILE_PATH_FOR_ROLLBACK" ]]; then
         rm -f "$CONFIG_FILE_PATH_FOR_ROLLBACK"
     fi
@@ -718,7 +724,39 @@ do_install() {
         # Skip installation if IPCHECK_SCRIPT is the same as target (already installed and up to date)
         if [[ "$IPCHECK_SCRIPT" == "$BIN_DIR/ipcheck" ]]; then
             echo -e "  ${GREEN}✓ ipcheck is already installed. Skipping installation.${NC}"
-            # Still install/update man page if needed
+            # Still install/update lib directory and man page if needed
+            # Install lib directory
+            if [[ -d "$IPCHECK_LIB_DIR" ]]; then
+                echo -e "  ➡️  Updating library files for '${YELLOW}ipcheck${NC}'..."
+                mkdir -p "$LIB_DIR"
+                cp -r "$IPCHECK_LIB_DIR"/* "$LIB_DIR/"
+                chmod -R 755 "$LIB_DIR"
+                echo -e "${GREEN}✓ Library files updated${NC}"
+            else
+                # Try to download lib directory from GitHub if not found locally
+                echo -e "  ➡️  Downloading library files for '${YELLOW}ipcheck${NC}' from GitHub..."
+                local temp_lib
+                temp_lib=$(mktemp -d)
+                local lib_files=("core.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu.sh" "main_logic.sh" "vpn.sh")
+                local download_success=true
+                for lib_file in "${lib_files[@]}"; do
+                    if ! curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/lib/$lib_file" -o "$temp_lib/$lib_file" 2>/dev/null; then
+                        download_success=false
+                        break
+                    fi
+                done
+                if [[ "$download_success" == "true" ]]; then
+                    mkdir -p "$LIB_DIR"
+                    cp -r "$temp_lib"/* "$LIB_DIR/"
+                    chmod -R 755 "$LIB_DIR"
+                    rm -rf "$temp_lib"
+                    echo -e "${GREEN}✓ Library files installed${NC}"
+                else
+                    echo -e "${YELLOW}⚠️  Could not download library files (optional)${NC}"
+                    rm -rf "$temp_lib"
+                fi
+            fi
+            # Install/update man page
             local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
             if [ -f "$man_page_path" ]; then
                 echo -e "  ➡️  Updating man page for '${YELLOW}ipcheck${NC}'..."
@@ -741,6 +779,38 @@ do_install() {
         else
             echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
             install -m 755 "$IPCHECK_SCRIPT" "$BIN_DIR/ipcheck"
+            
+            # Install lib directory
+            if [[ -d "$IPCHECK_LIB_DIR" ]]; then
+                echo -e "  ➡️  Installing library files for '${YELLOW}ipcheck${NC}'..."
+                mkdir -p "$LIB_DIR"
+                cp -r "$IPCHECK_LIB_DIR"/* "$LIB_DIR/"
+                chmod -R 755 "$LIB_DIR"
+                echo -e "${GREEN}✓ Library files installed${NC}"
+            else
+                # Try to download lib directory from GitHub if not found locally
+                echo -e "  ➡️  Downloading library files for '${YELLOW}ipcheck${NC}' from GitHub..."
+                local temp_lib
+                temp_lib=$(mktemp -d)
+                local lib_files=("core.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu.sh" "main_logic.sh" "vpn.sh")
+                local download_success=true
+                for lib_file in "${lib_files[@]}"; do
+                    if ! curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/lib/$lib_file" -o "$temp_lib/$lib_file" 2>/dev/null; then
+                        download_success=false
+                        break
+                    fi
+                done
+                if [[ "$download_success" == "true" ]]; then
+                    mkdir -p "$LIB_DIR"
+                    cp -r "$temp_lib"/* "$LIB_DIR/"
+                    chmod -R 755 "$LIB_DIR"
+                    rm -rf "$temp_lib"
+                    echo -e "${GREEN}✓ Library files installed${NC}"
+                else
+                    echo -e "${YELLOW}⚠️  Could not download library files (optional)${NC}"
+                    rm -rf "$temp_lib"
+                fi
+            fi
             
             # Clean up temp directory if we downloaded from GitHub
             if [[ -n "$DOWNLOADED_TEMP_DIR" ]] && [[ -d "$DOWNLOADED_TEMP_DIR" ]]; then
@@ -837,6 +907,11 @@ do_uninstall() {
         echo -e "   - Removing '$BIN_DIR/$tool_name' and its man page."
         rm -f "$BIN_DIR/$tool_name"
         rm -f "$MAN_DIR/$tool_name.1.gz"
+        # Also remove lib directory for ipcheck
+        if [[ "$tool_name" == "ipcheck" ]] && [[ -d "$LIB_DIR" ]]; then
+            echo -e "   - Removing library directory '$LIB_DIR'."
+            rm -rf "$LIB_DIR"
+        fi
     done
 
     echo -e "🔄  Updating man page database..."
