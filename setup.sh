@@ -388,8 +388,9 @@ show_post_install_warnings() {
         config_to_check="$default_config_file"
         check_existing=true
     fi
-        
-        if [[ "$check_existing" == "true" ]] && [[ -f "$config_to_check" ]]; then
+    
+    # Check the config file if requested
+    if [[ "$check_existing" == "true" ]] && [[ -f "$config_to_check" ]]; then
             echo -e "${BLUE}Checking configuration file: ${config_to_check}${NC}"
             
             # Source the config file to check for keys
@@ -435,9 +436,8 @@ show_post_install_warnings() {
             else
                 echo -e "${RED}Error: Cannot read configuration file: ${config_to_check}${NC}"
             fi
-        elif [[ "$check_existing" == "true" ]]; then
-            echo -e "${YELLOW}Configuration file not found: ${config_to_check}${NC}"
-        fi
+    elif [[ "$check_existing" == "true" ]]; then
+        echo -e "${YELLOW}Configuration file not found: ${config_to_check}${NC}"
     fi
     
     # Show missing keys
