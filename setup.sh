@@ -159,48 +159,150 @@ check_dependencies() {
 prompt_and_save_keys() {
     echo -e "\n${BLUE}--- STEP 2: API Key Configuration ---${NC}"
     MISSING_KEYS_RESULT=()
+    
+    # Define all API keys with their descriptions and URLs
     local all_keys_info=(
-        "IPQS_KEY|https://www.ipqualityscore.com/"
-        "ABUSEIPDB_KEY|https://www.abuseipdb.com/account"
-        "RIPE_KEY|https://atlas.ripe.net/apply/"
-        "HT_KEY|https://hosttracker.com/"
-        "IPREGISTRY_KEY|https://ipregistry.co/ (optional)"
+        "IPQS_KEY|IPQualityScore API Key|https://www.ipqualityscore.com/documentation/account/api-key|Required for IP reputation checks"
+        "ABUSEIPDB_KEY|AbuseIPDB API Key|https://www.abuseipdb.com/account/api|Required for abuse database checks"
+        "RIPE_KEY|RIPE Atlas API Key|https://atlas.ripe.net/apply/|Required for RIPE Atlas probe checks"
+        "HT_KEY|HostTracker API Key|https://hosttracker.com/|Optional - for HostTracker checks"
+        "IPREGISTRY_KEY|ipregistry.io API Key|https://ipregistry.co/|Optional - free tier available for enhanced scoring"
     )
 
-    read -p "Do you want to configure API keys now? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        for key_info in "${all_keys_info[@]}"; do MISSING_KEYS_RESULT+=("$key_info"); done
-        return
-    fi
-
+    # Ask user for config file path
     local USER_HOME
     USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
-    local CONFIG_DIR="$USER_HOME/.config/ipcheck"
-    CONFIG_FILE_PATH_FOR_ROLLBACK="$CONFIG_DIR/keys.conf"
-
+    local default_config_dir="$USER_HOME/.config/ipcheck"
+    local default_config_file="$default_config_dir/keys.conf"
+    
+    echo -e "${YELLOW}Where would you like to save the API keys configuration file?${NC}"
+    echo -e "Default: ${BLUE}$default_config_file${NC}"
+    read -p "Press Enter to use default, or enter a custom path: " custom_path
+    
+    local CONFIG_FILE_PATH
+    if [[ -z "$custom_path" ]]; then
+        CONFIG_FILE_PATH="$default_config_file"
+    else
+        # Expand ~ and resolve path
+        CONFIG_FILE_PATH=$(eval echo "$custom_path")
+        # If it's a directory, append keys.conf
+        if [[ -d "$CONFIG_FILE_PATH" ]]; then
+            CONFIG_FILE_PATH="$CONFIG_FILE_PATH/keys.conf"
+        fi
+    fi
+    
+    CONFIG_FILE_PATH_FOR_ROLLBACK="$CONFIG_FILE_PATH"
+    local CONFIG_DIR
+    CONFIG_DIR=$(dirname "$CONFIG_FILE_PATH")
+    
+    # Create directory if it doesn't exist
     mkdir -p "$CONFIG_DIR"
-    >"$CONFIG_FILE_PATH_FOR_ROLLBACK"
-
+    
+    # Create config file with header and documentation
+    {
+        echo "# IPCheck API Keys Configuration File"
+        echo "# Generated on: $(date)"
+        echo "#"
+        echo "# This file contains API keys for various IP intelligence services."
+        echo "# Each key is optional, but some features require specific keys."
+        echo "#"
+        echo "# IMPORTANT: Keep this file secure! It contains sensitive API keys."
+        echo "# File permissions are automatically set to 600 (read/write for owner only)."
+        echo "#"
+        echo ""
+        echo "# =========================================="
+        echo "# API Keys Configuration"
+        echo "# =========================================="
+        echo ""
+        
+        # Add documentation for each API key
+        for key_info in "${all_keys_info[@]}"; do
+            local key_name="${key_info%%|*}"
+            local key_desc="${key_info#*|}"
+            key_desc="${key_desc%%|*}"
+            local key_url="${key_info##*|}"
+            local key_url_clean="${key_url%% *}"  # Remove any trailing text
+            local key_required="${key_info##*|}"
+            key_required="${key_required#* }"  # Get text after URL
+            
+            echo "# --- $key_name ---"
+            echo "# Description: $key_desc"
+            echo "# Get your API key from: $key_url_clean"
+            if [[ -n "$key_required" ]] && [[ "$key_required" != "$key_url_clean" ]]; then
+                echo "# Status: $key_required"
+            fi
+            echo "#"
+            echo "# $key_name=\"your_api_key_here\""
+            echo ""
+        done
+        
+        echo "# =========================================="
+        echo "# End of Documentation"
+        echo "# =========================================="
+        echo ""
+        echo "# Uncomment and fill in your API keys below:"
+        echo ""
+        
+    } > "$CONFIG_FILE_PATH"
+    
+    # Ask user if they want to configure keys now
+    if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
+        read -p "Do you want to configure API keys now? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Configuration file created at: ${BLUE}$CONFIG_FILE_PATH${NC}"
+            echo -e "${YELLOW}You can edit it later to add your API keys.${NC}"
+            for key_info in "${all_keys_info[@]}"; do MISSING_KEYS_RESULT+=("$key_info"); done
+            if [[ -n "${SUDO_USER}" ]]; then chown -R "$SUDO_USER":"$(id -g -n "$SUDO_USER")" "$CONFIG_DIR"; fi
+            chmod 600 "$CONFIG_FILE_PATH"
+            return
+        fi
+    else
+        echo -e "${YELLOW}Non-interactive mode: Configuration file created with documentation.${NC}"
+        echo -e "${YELLOW}Please edit the file manually at: ${BLUE}$CONFIG_FILE_PATH${NC}"
+        for key_info in "${all_keys_info[@]}"; do MISSING_KEYS_RESULT+=("$key_info"); done
+        if [[ -n "${SUDO_USER}" ]]; then chown -R "$SUDO_USER":"$(id -g -n "$SUDO_USER")" "$CONFIG_DIR"; fi
+        chmod 600 "$CONFIG_FILE_PATH"
+        return
+    fi
+    
+    # Interactive key configuration
+    echo -e "${BLUE}Enter your API keys (press Enter to skip optional keys):${NC}"
+    echo ""
+    
     for key_info in "${all_keys_info[@]}"; do
-        local key_name="${key_info%|*}"
-        read -p "Enter your ${YELLOW}${key_name}${NC} (optional, press Enter to skip): " key_value
+        local key_name="${key_info%%|*}"
+        local key_desc="${key_info#*|}"
+        key_desc="${key_desc%%|*}"
+        local key_url="${key_info##*|}"
+        local key_url_clean="${key_url%% *}"
+        
+        echo -e "${YELLOW}$key_name${NC} - $key_desc"
+        echo -e "  Get it from: ${BLUE}$key_url_clean${NC}"
+        read -p "  Enter your API key (or press Enter to skip): " key_value
+        
         if [[ -z "$key_value" ]]; then
             MISSING_KEYS_RESULT+=("$key_info")
+            echo "# $key_name=\"\"" >> "$CONFIG_FILE_PATH"
         else
             # Basic validation: non-empty and reasonable length
             if [[ ${#key_value} -lt 5 ]] || [[ ${#key_value} -gt 200 ]]; then
-                echo -e "${YELLOW}Warning: Key length seems invalid. Skipping.${NC}"
+                echo -e "${YELLOW}  Warning: Key length seems invalid. Skipping.${NC}"
                 MISSING_KEYS_RESULT+=("$key_info")
+                echo "# $key_name=\"\"" >> "$CONFIG_FILE_PATH"
             else
-                echo "${key_name}=\"${key_value}\"" >>"$CONFIG_FILE_PATH_FOR_ROLLBACK"
+                echo "$key_name=\"$key_value\"" >> "$CONFIG_FILE_PATH"
+                echo -e "${GREEN}  ✓ Key saved${NC}"
             fi
         fi
+        echo ""
     done
-
+    
     if [[ -n "${SUDO_USER}" ]]; then chown -R "$SUDO_USER":"$(id -g -n "$SUDO_USER")" "$CONFIG_DIR"; fi
     # Set secure permissions on config file
-    chmod 600 "$CONFIG_FILE_PATH_FOR_ROLLBACK"
+    chmod 600 "$CONFIG_FILE_PATH"
+    
+    echo -e "${GREEN}✅ Configuration file created at: ${BLUE}$CONFIG_FILE_PATH${NC}"
 }
 
 # Shows a final warning if some API keys were not set.
