@@ -177,7 +177,14 @@ prompt_and_save_keys() {
     
     echo -e "${YELLOW}Where would you like to save the API keys configuration file?${NC}"
     echo -e "Default: ${BLUE}$default_config_file${NC}"
-    read -p "Press Enter to use default, or enter a custom path: " custom_path
+    
+    local custom_path=""
+    # Only ask for input if we're in interactive mode and stdin is a terminal
+    if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
+        read -p "Press Enter to use default, or enter a custom path: " custom_path
+    else
+        echo -e "${BLUE}Using default path (non-interactive mode)${NC}"
+    fi
     
     local CONFIG_FILE_PATH
     if [[ -z "$custom_path" ]]; then
