@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.1.3
+# ipcheck - Advanced, parallel IP reputation checker v2.1.4
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.1.3"
+IPCHECK_VERSION="2.1.4"
 
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
@@ -1384,7 +1384,6 @@ generate_xml_report() {
 # --- Interactive Menu Functions ---
 
 show_logo() {
-    clear
     echo -e "${BLUE}"
     echo "    ██╗██████╗  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗"
     echo "    ██║██╔══██╗██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝"
@@ -1393,7 +1392,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v2.1.3"
+    echo "    Advanced IP Reputation Checker v2.1.4"
     echo -e "${NC}"
     echo
 }
@@ -1427,6 +1426,7 @@ show_main_menu() {
 }
 
 show_ip_check_menu() {
+    clear
     show_logo
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}📋 IP Check Options / گزینه‌های بررسی IP${NC}"
@@ -1472,6 +1472,7 @@ show_ip_check_menu() {
     input_method=$(printf '%s' "$input_method" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     local ip_input=""
+    local result=""
     case "$input_method" in
         1)
             echo
@@ -1487,13 +1488,13 @@ show_ip_check_menu() {
             ip_input=$(printf '%s' "$ip_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [[ -z "$ip_input" ]]; then
                 echo -e "${YELLOW}⚠ No IP address entered. Cancelling...${NC}"
-                echo "INPUT:CANCEL"
+                result="INPUT:CANCEL"
             else
-                echo "INPUT:$ip_input"
+                result="INPUT:$ip_input"
             fi
             ;;
         2)
-            echo "INPUT:--server"
+            result="INPUT:--server"
             ;;
         3)
             echo
@@ -1509,20 +1510,24 @@ show_ip_check_menu() {
             file_path=$(printf '%s' "$file_path" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [[ -z "$file_path" ]]; then
                 echo -e "${YELLOW}⚠ No file path entered. Cancelling...${NC}"
-                echo "INPUT:CANCEL"
+                result="INPUT:CANCEL"
             else
-                echo "INPUT:--file:$file_path"
+                result="INPUT:--file:$file_path"
             fi
             ;;
         4)
-            echo "INPUT:CANCEL"
+            result="INPUT:CANCEL"
             ;;
         *)
             echo -e "${YELLOW}⚠ Invalid option.${NC}"
             sleep 1
-            echo "INPUT:CANCEL"
+            result="INPUT:CANCEL"
             ;;
     esac
+    
+    # Store result in global variable
+    IPCHECK_MENU_RESULT="$result"
+    echo "$result"
 }
 
 show_check_options_menu() {
@@ -1765,12 +1770,15 @@ interactive_menu() {
                 local input_result
                 input_result=$(show_ip_check_menu)
                 
-                if [[ "$input_result" == "INPUT:CANCEL" ]]; then
+                if [[ -z "$input_result" ]] || [[ "$input_result" == "INPUT:CANCEL" ]]; then
                     continue
                 fi
                 
                 local check_result
-                check_result=$(show_check_options_menu)
+                check_result=$(show_check_options_menu 2>&1)
+                
+                # Extract the result line
+                check_result=$(echo "$check_result" | grep "^FLAGS:" | head -1)
                 
                 if [[ "$check_result" == "FLAGS:"* ]]; then
                     local flags="${check_result#FLAGS:}"
