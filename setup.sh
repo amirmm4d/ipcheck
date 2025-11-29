@@ -8,7 +8,7 @@ set -eo pipefail
 # --- Configuration & Colors ---
 # Handle case when script is piped from curl (BASH_SOURCE may be unbound)
 if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ -f "${BASH_SOURCE[0]}" ]]; then
-    SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 else
     # Fallback for piped execution - use current directory
     SCRIPT_DIR="${PWD:-$(pwd)}"
@@ -94,9 +94,9 @@ check_dependencies() {
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 auto_install=true
             else
-                echo -e "${RED}🛑 Installation aborted. Please install dependencies manually.${NC}"
-                exit 1
-            fi
+        echo -e "${RED}🛑 Installation aborted. Please install dependencies manually.${NC}"
+        exit 1
+    fi
         fi
     fi
 
@@ -179,10 +179,14 @@ prompt_and_save_keys() {
     echo -e "Default: ${BLUE}$default_config_file${NC}"
     
     local custom_path=""
-    # Only ask for input if we're in interactive mode and stdin is a terminal
-    if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
+    # Try to read from terminal if possible
+    if [[ -t 0 ]] || [[ -c /dev/tty ]]; then
         echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
-        read -r custom_path
+        if [[ -c /dev/tty ]]; then
+            read -r custom_path < /dev/tty
+        else
+            read -r custom_path
+        fi
         # Trim whitespace
         custom_path=$(echo "$custom_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     else
@@ -257,9 +261,9 @@ prompt_and_save_keys() {
     
     # Ask user if they want to configure keys now
     if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
-        read -p "Do you want to configure API keys now? (y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    read -p "Do you want to configure API keys now? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             echo -e "${YELLOW}Configuration file created at: ${BLUE}$CONFIG_FILE_PATH${NC}"
             echo -e "${YELLOW}You can edit it later to add your API keys.${NC}"
             for key_info in "${all_keys_info[@]}"; do MISSING_KEYS_RESULT+=("$key_info"); done
@@ -275,11 +279,11 @@ prompt_and_save_keys() {
         chmod 600 "$CONFIG_FILE_PATH"
         return
     fi
-    
+
     # Interactive key configuration
     echo -e "${BLUE}Enter your API keys (press Enter to skip optional keys):${NC}"
     echo ""
-    
+
     for key_info in "${all_keys_info[@]}"; do
         local key_name="${key_info%%|*}"
         local key_desc="${key_info#*|}"
@@ -307,7 +311,7 @@ prompt_and_save_keys() {
         fi
         echo ""
     done
-    
+
     if [[ -n "${SUDO_USER}" ]]; then chown -R "$SUDO_USER":"$(id -g -n "$SUDO_USER")" "$CONFIG_DIR"; fi
     # Set secure permissions on config file
     chmod 600 "$CONFIG_FILE_PATH"
@@ -331,16 +335,27 @@ show_post_install_warnings() {
     local default_config_file="$USER_HOME/.config/ipcheck/keys.conf"
     
     local check_existing=false
-    if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
+    local config_to_check=""
+    
+    # Always try to read from terminal if we're not in non-interactive mode
+    if [[ "$NON_INTERACTIVE" != "true" ]]; then
         echo -e "\n${BLUE}Do you want to check an existing configuration file?${NC}"
         echo -e "Default: ${BLUE}$default_config_file${NC}"
         echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
         
-        # Read input from user (wait for Enter key)
+        # Read input directly from terminal (use /dev/tty if available, otherwise stdin)
         local custom_check_path=""
-        read -r custom_check_path
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            # Read from terminal device directly
+            read -r custom_check_path < /dev/tty 2>/dev/null || read -r custom_check_path
+        elif [[ -t 0 ]]; then
+            # Read from stdin if it's a terminal
+            read -r custom_check_path
+        else
+            # Fallback: try to read anyway
+            read -r custom_check_path < /dev/tty 2>/dev/null || custom_check_path=""
+        fi
         
-        local config_to_check=""
         # Trim whitespace
         custom_check_path=$(echo "$custom_check_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
@@ -361,6 +376,12 @@ show_post_install_warnings() {
             check_existing=true
             echo -e "${BLUE}✓ Using custom path: ${config_to_check}${NC}"
         fi
+    else
+        # Non-interactive mode, use default
+        echo -e "${BLUE}Non-interactive mode: Using default path${NC}"
+        config_to_check="$default_config_file"
+        check_existing=true
+    fi
         
         if [[ "$check_existing" == "true" ]] && [[ -f "$config_to_check" ]]; then
             echo -e "${BLUE}Checking configuration file: ${config_to_check}${NC}"
@@ -416,7 +437,7 @@ show_post_install_warnings() {
     # Show missing keys
     if [ ${#MISSING_KEYS_RESULT[@]} -gt 0 ]; then
         echo -e "\n${YELLOW}You are missing the following keys:${NC}"
-        for key_info in "${MISSING_KEYS_RESULT[@]}"; do
+    for key_info in "${MISSING_KEYS_RESULT[@]}"; do
             local key_name="${key_info%%|*}"
             local key_desc="${key_info#*|}"
             key_desc="${key_desc%%|*}"
@@ -462,11 +483,11 @@ do_install() {
         fi
         # Check for tools in tools/ directory
         if [ -d "$TOOLS_DIR" ]; then
-            for tool_path in "$TOOLS_DIR"/*; do
-                if [ -f "$tool_path" ] && [ -x "$tool_path" ]; then
-                    tools_to_install+=("$(basename "$tool_path")")
-                fi
-            done
+        for tool_path in "$TOOLS_DIR"/*; do
+            if [ -f "$tool_path" ] && [ -x "$tool_path" ]; then
+                tools_to_install+=("$(basename "$tool_path")")
+            fi
+        done
         fi
     fi
 
@@ -550,9 +571,9 @@ do_uninstall() {
         fi
         # Include tools from tools/ directory
         if [ -d "$TOOLS_DIR" ]; then
-            for tool_path in "$TOOLS_DIR"/*; do
-                if [ -f "$tool_path" ]; then tools_to_uninstall+=("$(basename "$tool_path")"); fi
-            done
+        for tool_path in "$TOOLS_DIR"/*; do
+            if [ -f "$tool_path" ]; then tools_to_uninstall+=("$(basename "$tool_path")"); fi
+        done
         fi
     fi
 
