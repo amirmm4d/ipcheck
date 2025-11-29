@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Version
+IPCHECK_VERSION="2.0.0"
+
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
     RED=$(tput setaf 1)

@@ -35,6 +35,7 @@ fi
 
 CONFIG_FILE_PATH_FOR_ROLLBACK=""
 NON_INTERACTIVE=false  # Auto-install dependencies without prompting
+LAST_CONFIG_PATH_FILE="$HOME/.config/ipcheck/.last_config_path"  # Store last config path
 
 # --- Helper Functions ---
 
@@ -155,6 +156,54 @@ check_dependencies() {
     echo -e "${GREEN}✅ Dependencies installed successfully.${NC}"
 }
 
+# Get version from ipcheck script
+get_ipcheck_version() {
+    local script_path="$1"
+    if [[ -f "$script_path" ]] && [[ -r "$script_path" ]]; then
+        # Extract version from script
+        local version
+        version=$(grep -E "^IPCHECK_VERSION=" "$script_path" 2>/dev/null | head -1 | cut -d'"' -f2)
+        if [[ -z "$version" ]]; then
+            # Try to extract from comment
+            version=$(grep -E "v[0-9]+\.[0-9]+\.[0-9]+" "$script_path" 2>/dev/null | head -1 | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+" | head -1 | sed 's/v//')
+        fi
+        echo "${version:-unknown}"
+    else
+        echo "unknown"
+    fi
+}
+
+# Compare two version strings (returns 0 if v1 >= v2, 1 otherwise)
+compare_versions() {
+    local v1="$1" v2="$2"
+    if [[ "$v1" == "unknown" ]] || [[ "$v2" == "unknown" ]]; then
+        return 1
+    fi
+    
+    # Split versions into arrays
+    local IFS='.'
+    read -ra v1_parts <<< "$v1"
+    read -ra v2_parts <<< "$v2"
+    
+    # Compare each part
+    local i=0
+    while [[ $i -lt ${#v1_parts[@]} ]] && [[ $i -lt ${#v2_parts[@]} ]]; do
+        if [[ ${v1_parts[$i]} -gt ${v2_parts[$i]} ]]; then
+            return 0  # v1 > v2
+        elif [[ ${v1_parts[$i]} -lt ${v2_parts[$i]} ]]; then
+            return 1  # v1 < v2
+        fi
+        ((i++))
+    done
+    
+    # If we get here, check length
+    if [[ ${#v1_parts[@]} -ge ${#v2_parts[@]} ]]; then
+        return 0  # v1 >= v2
+    else
+        return 1  # v1 < v2
+    fi
+}
+
 # Helper function to expand ~ and ./ in paths correctly
 expand_user_path() {
     local path="$1"
@@ -219,13 +268,31 @@ prompt_and_save_keys() {
     local default_config_dir="$USER_HOME/.config/ipcheck"
     local default_config_file="$default_config_dir/keys.conf"
     
-    echo -e "${YELLOW}Where would you like to save the API keys configuration file?${NC}"
-    echo -e "Default: ${BLUE}$default_config_file${NC}"
+    # Check if we have a saved config path from previous installation
+    local saved_config_path=""
+    if [[ -f "$LAST_CONFIG_PATH_FILE" ]] && [[ -r "$LAST_CONFIG_PATH_FILE" ]]; then
+        saved_config_path=$(<"$LAST_CONFIG_PATH_FILE")
+        saved_config_path=$(echo "$saved_config_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        # Validate that the saved path still exists or is valid
+        if [[ -n "$saved_config_path" ]] && [[ -f "$saved_config_path" ]]; then
+            echo -e "${GREEN}Found previous configuration file: ${BLUE}$saved_config_path${NC}"
+            echo -e "${YELLOW}Using saved path. Press Enter to use it, or enter a new path:${NC}"
+        else
+            saved_config_path=""
+        fi
+    fi
     
     local custom_path=""
     # Try to read from terminal if we're not in non-interactive mode
     if [[ "$NON_INTERACTIVE" != "true" ]]; then
-        echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
+        if [[ -n "$saved_config_path" ]]; then
+            echo -ne "${YELLOW}Enter custom path (or press Enter to use saved: ${BLUE}$saved_config_path${YELLOW}): ${NC}"
+        else
+            echo -e "${YELLOW}Where would you like to save the API keys configuration file?${NC}"
+            echo -e "Default: ${BLUE}$default_config_file${NC}"
+            echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
+        fi
+        
         # Force read from /dev/tty to ensure we get user input
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
             exec 3< /dev/tty
@@ -239,8 +306,20 @@ prompt_and_save_keys() {
         fi
         # Trim whitespace
         custom_path=$(echo "$custom_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        # If user pressed Enter and we have saved path, use it
+        if [[ -z "$custom_path" ]] && [[ -n "$saved_config_path" ]]; then
+            custom_path="$saved_config_path"
+            echo -e "${GREEN}✓ Using saved configuration path${NC}"
+        fi
     else
-        echo -e "${BLUE}Using default path (non-interactive mode)${NC}"
+        # In non-interactive mode, use saved path if available, otherwise default
+        if [[ -n "$saved_config_path" ]]; then
+            custom_path="$saved_config_path"
+            echo -e "${BLUE}Using saved configuration path: ${custom_path}${NC}"
+        else
+            echo -e "${BLUE}Using default path (non-interactive mode)${NC}"
+        fi
     fi
     
     local CONFIG_FILE_PATH
@@ -256,8 +335,23 @@ prompt_and_save_keys() {
         fi
     
     CONFIG_FILE_PATH_FOR_ROLLBACK="$CONFIG_FILE_PATH"
+    
+    # Save config path for future installations
+    local config_dir_for_save
+    config_dir_for_save=$(dirname "$LAST_CONFIG_PATH_FILE")
+    mkdir -p "$config_dir_for_save"
+    echo "$CONFIG_FILE_PATH" > "$LAST_CONFIG_PATH_FILE"
+    chmod 600 "$LAST_CONFIG_PATH_FILE" 2>/dev/null || true
+    
     local CONFIG_DIR
     CONFIG_DIR=$(dirname "$CONFIG_FILE_PATH")
+    
+    # Save config path for future installations
+    local config_dir_for_save
+    config_dir_for_save=$(dirname "$LAST_CONFIG_PATH_FILE")
+    mkdir -p "$config_dir_for_save"
+    echo "$CONFIG_FILE_PATH" > "$LAST_CONFIG_PATH_FILE"
+    chmod 600 "$LAST_CONFIG_PATH_FILE" 2>/dev/null || true
     
     # Create directory if it doesn't exist
     mkdir -p "$CONFIG_DIR"
@@ -564,6 +658,42 @@ do_install() {
     
     # Handle ipcheck in root directory
     if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]] && [[ -f "$IPCHECK_SCRIPT" ]]; then
+        # Check if ipcheck is already installed
+        local installed_version="unknown"
+        local new_version="unknown"
+        
+        if [[ -f "$BIN_DIR/ipcheck" ]] && [[ -x "$BIN_DIR/ipcheck" ]]; then
+            installed_version=$(get_ipcheck_version "$BIN_DIR/ipcheck")
+            new_version=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+            
+            echo -e "  ${BLUE}Checking installed version...${NC}"
+            echo -e "  ${YELLOW}Installed version: ${installed_version}${NC}"
+            echo -e "  ${YELLOW}New version: ${new_version}${NC}"
+            
+            # Compare versions
+            if compare_versions "$new_version" "$installed_version"; then
+                if [[ "$new_version" != "$installed_version" ]]; then
+                    echo -e "  ${GREEN}✓ Update available! Updating ipcheck...${NC}"
+                else
+                    echo -e "  ${GREEN}✓ ipcheck is already up to date.${NC}"
+                fi
+            else
+                echo -e "  ${YELLOW}⚠ Installed version is newer or same. Keeping current version.${NC}"
+                # Skip installation if installed version is newer or same
+                if [[ "$installed_version" != "unknown" ]] && [[ "$new_version" != "unknown" ]]; then
+                    echo -e "  ${BLUE}Skipping ipcheck installation (already up to date).${NC}"
+                    # Still install man page if needed
+                    local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
+                    if [ -f "$man_page_path" ]; then
+                        echo -e "  ➡️  Updating man page for '${YELLOW}ipcheck${NC}'..."
+                        install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
+                        gzip -f "$MAN_DIR/ipcheck.1"
+                    fi
+                    continue
+                fi
+            fi
+        fi
+        
         echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
         install -m 755 "$IPCHECK_SCRIPT" "$BIN_DIR/ipcheck"
         local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
