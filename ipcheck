@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.1.2
+# ipcheck - Advanced, parallel IP reputation checker v2.1.3
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.1.2"
+IPCHECK_VERSION="2.1.3"
 
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
@@ -1393,7 +1393,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v2.1.2"
+    echo "    Advanced IP Reputation Checker v2.1.3"
     echo -e "${NC}"
     echo
 }
@@ -1427,33 +1427,99 @@ show_main_menu() {
 }
 
 show_ip_check_menu() {
-    clear
     show_logo
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}IP Check Options / گزینه‌های بررسی IP${NC}"
+    echo -e "${BLUE}📋 IP Check Options / گزینه‌های بررسی IP${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
-    echo -e "${BLUE}Input Method / روش ورودی:${NC}"
-    echo -e "  ${YELLOW}1)${NC} Enter IP address(es) manually"
-    echo -e "  ${YELLOW}2)${NC} Check server's public IP"
-    echo -e "  ${YELLOW}3)${NC} Load from file"
+    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│${NC}  ${BLUE}Input Method / روش ورودی:${NC}"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}✍️  Enter IP address(es) manually${NC} / ${BLUE}وارد کردن دستی آدرس IP${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Type one or more IP addresses (comma-separated)"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} وارد کردن یک یا چند آدرس IP (جدا شده با کاما)"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}🖥️  Check server's public IP${NC} / ${BLUE}بررسی IP عمومی سرور${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Automatically detect and check this server's public IP"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} تشخیص و بررسی خودکار IP عمومی این سرور"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}📄 Load from file${NC} / ${BLUE}بارگذاری از فایل${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Load IP addresses from a text file (one per line)"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} بارگذاری آدرس‌های IP از فایل متنی (هر خط یک IP)"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}⬅️  Back to main menu${NC} / ${BLUE}بازگشت به منوی اصلی${NC}"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
     echo
-    read -p "Select input method (1-3): " input_method
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -ne "${BLUE}👉 Select input method (1-4): ${NC}"
+    
+    local input_method=""
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        exec 3< /dev/tty
+        IFS= read -r input_method <&3
+        exec 3<&-
+    elif [[ -t 0 ]]; then
+        IFS= read -r input_method
+    else
+        exec 3< /dev/tty 2>/dev/null
+        if [[ $? -eq 0 ]]; then
+            IFS= read -r input_method <&3
+            exec 3<&-
+        else
+            IFS= read -r input_method || input_method=""
+        fi
+    fi
+    input_method=$(printf '%s' "$input_method" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     local ip_input=""
     case "$input_method" in
         1)
-            read -p "Enter IP address(es) (comma-separated): " ip_input
-            echo "INPUT:$ip_input"
+            echo
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -ne "${BLUE}📝 Enter IP address(es) (comma-separated): ${NC}"
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                exec 3< /dev/tty
+                IFS= read -r ip_input <&3
+                exec 3<&-
+            else
+                IFS= read -r ip_input
+            fi
+            ip_input=$(printf '%s' "$ip_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ -z "$ip_input" ]]; then
+                echo -e "${YELLOW}⚠ No IP address entered. Cancelling...${NC}"
+                echo "INPUT:CANCEL"
+            else
+                echo "INPUT:$ip_input"
+            fi
             ;;
         2)
             echo "INPUT:--server"
             ;;
         3)
-            read -p "Enter file path: " file_path
-            echo "INPUT:--file:$file_path"
+            echo
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -ne "${BLUE}📁 Enter file path: ${NC}"
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                exec 3< /dev/tty
+                IFS= read -r file_path <&3
+                exec 3<&-
+            else
+                IFS= read -r file_path
+            fi
+            file_path=$(printf '%s' "$file_path" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ -z "$file_path" ]]; then
+                echo -e "${YELLOW}⚠ No file path entered. Cancelling...${NC}"
+                echo "INPUT:CANCEL"
+            else
+                echo "INPUT:--file:$file_path"
+            fi
+            ;;
+        4)
+            echo "INPUT:CANCEL"
             ;;
         *)
+            echo -e "${YELLOW}⚠ Invalid option.${NC}"
+            sleep 1
             echo "INPUT:CANCEL"
             ;;
     esac
@@ -1563,29 +1629,81 @@ show_check_options_menu() {
 }
 
 show_vpn_menu() {
-    clear
     show_logo
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}VPN Installation / نصب VPN${NC}"
+    echo -e "${BLUE}🔧 VPN Installation / نصب VPN${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
     if [[ $EUID -ne 0 ]]; then
-        echo -e "${RED}Error: VPN installation requires root privileges.${NC}"
-        echo -e "${YELLOW}Please run with: sudo ipcheck${NC}"
-        read -p "Press Enter to continue..."
+        echo -e "${RED}╔══════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║${NC}                                                              ${RED}║${NC}"
+        echo -e "${RED}║${NC}  ${YELLOW}⚠️  Error: VPN installation requires root privileges${NC}          ${RED}║${NC}"
+        echo -e "${RED}║${NC}                                                              ${RED}║${NC}"
+        echo -e "${RED}║${NC}  ${YELLOW}Please run with: ${GREEN}sudo ipcheck${NC}                              ${RED}║${NC}"
+        echo -e "${RED}║${NC}                                                              ${RED}║${NC}"
+        echo -e "${RED}╚══════════════════════════════════════════════════════════════╝${NC}"
+        echo
+        echo -ne "${BLUE}Press Enter to continue...${NC}"
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -r <&3
+            exec 3<&-
+        else
+            IFS= read -r
+        fi
         return
     fi
     
-    echo -e "${BLUE}Select VPN to install:${NC}"
-    echo -e "  1) Sing-box (Recommended for Reality)"
-    echo -e "  2) Xray (Xray-core)"
-    echo -e "  3) V2Ray (V2Fly)"
-    echo -e "  4) Shadowsocks-libev"
-    echo -e "  5) OpenVPN"
-    echo -e "  6) OpenConnect (Cisco AnyConnect compatible)"
-    echo -e "  7) Back to main menu"
+    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│${NC}  ${BLUE}Select VPN to install / انتخاب VPN برای نصب:${NC}"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}🚀 Sing-box${NC} (Recommended for Reality / توصیه شده برای Reality)"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Modern, lightweight, supports Reality protocol"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} مدرن، سبک، پشتیبانی از پروتکل Reality"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}⚡ Xray${NC} (Xray-core)"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} High-performance proxy platform"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پلتفرم پروکسی با عملکرد بالا"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}🌐 V2Ray${NC} (V2Fly)"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Popular proxy platform with extensive features"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پلتفرم پروکسی محبوب با ویژگی‌های گسترده"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}🔒 Shadowsocks-libev${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Lightweight SOCKS5 proxy"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پروکسی SOCKS5 سبک"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}5)${NC} ${BLUE}🛡️  OpenVPN${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Industry-standard VPN protocol"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پروتکل VPN استاندارد صنعتی"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}6)${NC} ${BLUE}🔐 OpenConnect${NC} (Cisco AnyConnect compatible)"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Compatible with Cisco AnyConnect VPN"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} سازگار با VPN Cisco AnyConnect"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}7)${NC} ${BLUE}⬅️  Back to main menu${NC} / ${BLUE}بازگشت به منوی اصلی${NC}"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
     echo
-    read -p "Select option (1-7): " vpn_choice
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -ne "${BLUE}👉 Select option (1-7): ${NC}"
+    
+    local vpn_choice=""
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        exec 3< /dev/tty
+        IFS= read -r vpn_choice <&3
+        exec 3<&-
+    elif [[ -t 0 ]]; then
+        IFS= read -r vpn_choice
+    else
+        exec 3< /dev/tty 2>/dev/null
+        if [[ $? -eq 0 ]]; then
+            IFS= read -r vpn_choice <&3
+            exec 3<&-
+        else
+            IFS= read -r vpn_choice || vpn_choice=""
+        fi
+    fi
+    vpn_choice=$(printf '%s' "$vpn_choice" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     case "$vpn_choice" in
         1) install_singbox ;;
@@ -1595,10 +1713,23 @@ show_vpn_menu() {
         5) install_openvpn ;;
         6) install_cisco ;;
         7) return ;;
-        *) echo -e "${YELLOW}Invalid option.${NC}" ;;
+        *)
+            echo -e "${YELLOW}⚠ Invalid option.${NC}"
+            sleep 1
+            ;;
     esac
     
-    read -p "Press Enter to continue..."
+    if [[ "$vpn_choice" =~ ^[1-6]$ ]]; then
+        echo
+        echo -ne "${BLUE}Press Enter to continue...${NC}"
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -r <&3
+            exec 3<&-
+        else
+            IFS= read -r
+        fi
+    fi
 }
 
 interactive_menu() {
