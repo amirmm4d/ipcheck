@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.0.0
+# ipcheck - Advanced, parallel IP reputation checker v2.0.1
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.0.0"
+IPCHECK_VERSION="2.0.1"
 
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
@@ -1384,6 +1384,7 @@ generate_xml_report() {
 # --- Interactive Menu Functions ---
 
 show_logo() {
+    clear
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║                                                              ║"
@@ -1394,20 +1395,26 @@ show_logo() {
     echo "║     ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗     ║"
     echo "║     ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝     ║"
     echo "║                                                              ║"
-    echo "║           Advanced IP Reputation Checker v2.0.0             ║"
+    echo "║           Advanced IP Reputation Checker v2.0.1             ║"
     echo "║                                                              ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
+    echo
 }
 
 show_main_menu() {
-    clear
     show_logo
     
-    # Welcome message
+    # Welcome message with beautiful design
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║${NC}  ${BLUE}Welcome to IPCheck Suite!${NC}                                    ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}Comprehensive IP Reputation & Network Analysis Tool${NC}         ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}                                                              ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}╔══════════════════════════════════════════════════════╗${NC}  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}║${NC}  ${YELLOW}🌟 Welcome to IPCheck Suite! 🌟${NC}                    ${BLUE}║${NC}  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}║${NC}                                                      ${BLUE}║${NC}  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}║${NC}  ${GREEN}Comprehensive IP Reputation & Network Analysis${NC}        ${BLUE}║${NC}  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}║${NC}  ${GREEN}Powerful tool for IP intelligence and VPN setup${NC}      ${BLUE}║${NC}  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}╚══════════════════════════════════════════════════════╝${NC}  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}                                                              ${GREEN}║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo
     
@@ -1435,7 +1442,21 @@ show_main_menu() {
     echo
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -ne "${BLUE}👉 Select an option (1-4): ${NC}"
-    read -r main_choice
+    
+    # Read from terminal to ensure we get user input
+    local main_choice=""
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        exec 3< /dev/tty
+        read -r main_choice <&3
+        exec 3<&-
+    elif [[ -t 0 ]]; then
+        read -r main_choice
+    else
+        read -r main_choice < /dev/tty 2>/dev/null || read -r main_choice
+    fi
+    
+    # Trim whitespace
+    main_choice=$(echo "$main_choice" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     echo "$main_choice"
 }
 
@@ -1686,9 +1707,14 @@ interactive_menu() {
                 echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
                 exit 0
                 ;;
+            "")
+                # Empty input, show menu again
+                continue
+                ;;
             *)
-                echo -e "${RED}Invalid option.${NC}"
-                sleep 1
+                echo -e "\n${RED}❌ Invalid option: '${main_choice}'. Please select 1-4.${NC}"
+                echo -e "${YELLOW}Press Enter to continue...${NC}"
+                read -r
                 ;;
         esac
     done
