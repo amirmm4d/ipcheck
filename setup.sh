@@ -155,6 +155,50 @@ check_dependencies() {
     echo -e "${GREEN}✅ Dependencies installed successfully.${NC}"
 }
 
+# Helper function to expand ~ and ./ in paths correctly
+expand_user_path() {
+    local path="$1"
+    local USER_HOME
+    USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
+    
+    # Replace ~ with actual user home directory (not root's home)
+    if [[ "$path" == ~/* ]] || [[ "$path" == "~" ]]; then
+        path="${path/#\~/$USER_HOME}"
+    fi
+    
+    # Replace ./ with current working directory (where script is running)
+    if [[ "$path" == ./* ]]; then
+        local current_dir
+        current_dir=$(pwd)
+        path="${path/#\./$current_dir}"
+    elif [[ "$path" == . ]]; then
+        path=$(pwd)
+    fi
+    
+    # Resolve absolute path
+    if [[ "$path" != /* ]]; then
+        # Relative path - make it absolute from current directory
+        local dir_part file_part
+        dir_part=$(dirname "$path")
+        file_part=$(basename "$path")
+        if [[ "$dir_part" == "." ]]; then
+            dir_part=$(pwd)
+        else
+            dir_part=$(cd "$dir_part" 2>/dev/null && pwd) || dir_part="$(pwd)/$dir_part"
+        fi
+        path="$dir_part/$file_part"
+    else
+        # Absolute path - resolve it
+        local dir_part file_part
+        dir_part=$(dirname "$path")
+        file_part=$(basename "$path")
+        dir_part=$(cd "$dir_part" 2>/dev/null && pwd) || dir_part="$dir_part"
+        path="$dir_part/$file_part"
+    fi
+    
+    echo "$path"
+}
+
 # Interactively prompts the user for API keys.
 prompt_and_save_keys() {
     echo -e "\n${BLUE}--- STEP 2: API Key Configuration ---${NC}"
@@ -203,8 +247,8 @@ prompt_and_save_keys() {
     if [[ -z "$custom_path" ]]; then
         CONFIG_FILE_PATH="$default_config_file"
         else
-            # Expand ~ and resolve path
-            CONFIG_FILE_PATH=$(eval echo "$custom_path")
+            # Expand ~ and ./ correctly, then resolve path
+            CONFIG_FILE_PATH=$(expand_user_path "$custom_path")
             # If it's a directory, append keys.conf (remove trailing slash first)
             if [[ -d "$CONFIG_FILE_PATH" ]]; then
                 CONFIG_FILE_PATH="${CONFIG_FILE_PATH%/}/keys.conf"
@@ -380,8 +424,8 @@ show_post_install_warnings() {
                 check_existing=false
                 echo -e "${YELLOW}⊘ Skipping config file check.${NC}"
             else
-                # Expand ~ and resolve path
-                config_to_check=$(eval echo "$custom_check_path")
+                # Expand ~ and ./ correctly, then resolve path
+                config_to_check=$(expand_user_path "$custom_check_path")
                 # If it's a directory, append keys.conf (remove trailing slash first)
                 if [[ -d "$config_to_check" ]]; then
                     config_to_check="${config_to_check%/}/keys.conf"
