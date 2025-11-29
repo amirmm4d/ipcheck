@@ -45,7 +45,7 @@ IPCheck یک ابزار خط فرمان (CLI) قدرتمند و سریع است 
 **روش توصیه شده** - مستقیماً دانلود و نصب می‌کند بدون نیاز به کلون کردن کل پروژه:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/amirmm4d/ipcheck-suite/main/setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/amirmm4d/ipcheck/main/setup.sh | sudo bash
 ```
 
 در حین نصب:
@@ -60,7 +60,7 @@ curl -fsSL https://raw.githubusercontent.com/amirmm4d/ipcheck-suite/main/setup.s
 
 ```bash
 # 1. کلون کردن پروژه
-git clone https://github.com/amirmm4d/ipcheck-suite.git
+git clone https://github.com/amirmm4d/ipcheck.git
 
 # 2. رفتن به دایرکتوری پروژه
 cd ipcheck-suite
@@ -433,7 +433,7 @@ IPCheck is a powerful and fast command-line (CLI) tool designed to check the rep
 **Recommended method** - Downloads and installs directly without cloning the repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/amirmm4d/ipcheck-suite/main/setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/amirmm4d/ipcheck/main/setup.sh | sudo bash
 ```
 
 During installation:
@@ -448,7 +448,7 @@ If you prefer to clone the repository first:
 
 ```bash
 # 1. Clone the project
-git clone https://github.com/amirmm4d/ipcheck-suite.git
+git clone https://github.com/amirmm4d/ipcheck.git
 
 # 2. Navigate into the project directory
 cd ipcheck-suite
@@ -786,5 +786,5 @@ Developed with ❤️ by amirmm4d from Iran 🇮🇷
 
 ## Links
 
-- **GitHub Repository**: [https://github.com/amirmm4d/ipcheck-suite](https://github.com/amirmm4d/ipcheck-suite)
-- **Issues**: [https://github.com/amirmm4d/ipcheck-suite/issues](https://github.com/amirmm4d/ipcheck-suite/issues)
+- **GitHub Repository**: [https://github.com/amirmm4d/ipcheck](https://github.com/amirmm4d/ipcheck)
+- **Issues**: [https://github.com/amirmm4d/ipcheck/issues](https://github.com/amirmm4d/ipcheck/issues)
