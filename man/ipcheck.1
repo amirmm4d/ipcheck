@@ -1,0 +1,372 @@
+.TH IPCHECK 1 "January 2025" "v2.0.0" "IP Reputation Tool"
+
+.SH NAME
+ipcheck \- Advanced IP reputation checker with network analysis and VPN installer
+
+.SH SYNOPSIS
+.B ipcheck
+[\-i <IPs>] [\-f <path>] [\-S] [\-q] [\-a] [\-s] [\-r] [\-c] [\-h] [\-j] [\-F <N>] [\-l <DIR>] [\-L txt|json] [\-g] [\-d] [\-t] [\-p] [\-R] [\-u] [\-n] [\-v] [\-U] [\-H]
+
+.SH DESCRIPTION
+A comprehensive command-line tool to test IP addresses for blacklist, fraud, or block risks using multiple reputation APIs. Includes advanced features like IP quality scoring, CDN detection, routing health analysis, port scanning, Reality fingerprint testing, prior usage detection, and smart suggestions.
+
+All checks run in parallel for fast results. When checking server IP with -S, automatically prompts for VPN installation (Sing-box, Xray, V2Ray, Shadowsocks, OpenVPN, or OpenConnect) if checks pass.
+
+Flags can be combined: -gdt is equivalent to -g -d -t.
+
+If no check flags (-q, -a, -s, etc.) are specified, all available basic checks are run.
+
+.SH INPUT OPTIONS
+.TP
+.B -i <IPs>
+Comma-separated list of IP addresses to check. At least one input option is required.
+.TP
+.B -f <path>
+Path to a file containing IP addresses (one per line).
+.TP
+.B -S
+Automatically detect and check the server's public IP address. After successful check, prompts interactively for VPN installation if IP passes all tests.
+
+.SH CHECK SELECTION OPTIONS
+.TP
+.B -q
+Run IPQualityScore check (requires IPQS_KEY)
+.TP
+.B -a
+Run AbuseIPDB check (requires ABUSEIPDB_KEY)
+.TP
+.B -s
+Run Scamalytics check (no API key required)
+.TP
+.B -r
+Run RIPE Atlas check for Iran probes (requires RIPE_KEY)
+.TP
+.B -c
+Run Check-Host ping test (no API key required)
+.TP
+.B -h
+Run HostTracker check (requires HT_KEY, currently placeholder)
+
+If none of these flags are specified, all available basic checks are run.
+
+.SH ADVANCED FEATURES
+.TP
+.B -g
+Generate IP Quality Clean Score (0-100) using weighted metrics from multiple sources. Outputs ip_score.json with detailed metrics including fraud_score, proxy_score, vpn_score, abuse_reports, bot_activity, and datacenter detection.
+.TP
+.B -d
+Detect CDN and proxy presence. Checks for Cloudflare, AWS CloudFront, Google Cloud CDN, Azure CDN, Fastly, and more using ASN lookup and reverse DNS. Outputs cdn_status.json.
+.TP
+.B -t
+Run routing health analysis. Tests latency, packet loss, hop distance, and route stability using mtr or traceroute. Outputs route_report.json. Requires mtr or traceroute tool.
+.TP
+.B -p
+Scan critical server ports (22, 80, 443, 8080, 8443, 53, 3389) to identify risk exposure. Assesses risk level (low/medium/high) based on open ports. Outputs port_scan.json. Requires nc (netcat) or ss tool. Includes warning about intrusive nature.
+.TP
+.B -R
+Test Sing-box Reality fingerprint compatibility. Performs TLS handshake testing, SNI behavior analysis, MTU consistency testing, and HTTP/2 support detection. Outputs reality_test.json with suitability assessment. Requires openssl.
+.TP
+.B -u
+Check prior usage history to identify if IP was previously used for VPN, proxy, botnet, or spam. Analyzes data from AbuseIPDB, IPQS, Scamalytics, and WHOIS. Outputs usage_history.json with risk assessment.
+.TP
+.B -n
+Generate smart suggestions based on all test results. Provides security recommendations, performance optimizations, CDN configuration suggestions, port security recommendations, and Reality configuration advice. Outputs suggestions.json.
+
+.SH OUTPUT & BEHAVIOR OPTIONS
+.TP
+.B -j
+Output results in JSON format (shortcut for -o json). Exit codes are properly set based on failure threshold. Includes all check results and advanced feature outputs.
+.TP
+.B -o <format>
+.B --output <format>
+Output format: json, yaml, csv, xml, or table (default: table).
+.RS
+.IP \(bu 2
+json - Structured JSON format (same as -j)
+.IP \(bu 2
+yaml - YAML format (requires yq or python3 with PyYAML for best results)
+.IP \(bu 2
+csv - CSV format suitable for Excel/Spreadsheet
+.IP \(bu 2
+xml - XML format
+.IP \(bu 2
+table - Human-readable table format (default)
+.RE
+.TP
+.B -F <N>
+Exit with error code 1 if N or more checks fail for any IP. Default is 1. Useful for CI/CD pipelines.
+.TP
+.B -l <DIR>
+Enable logging to the specified directory. Creates timestamped log files with API calls, results, and errors. Supports automatic log rotation (30 days retention, 100MB max file size).
+.TP
+.B -L txt|json
+Set log format. Default is txt. JSON format provides structured logs for easier parsing.
+.TP
+.B -v
+Ask to install VPN after server check (interactive). When used with -S, prompts for VPN selection after successful IP check. Options: Sing-box, Xray, V2Ray, Shadowsocks-libev, OpenVPN, or OpenConnect (Cisco AnyConnect compatible).
+.TP
+.B -A
+.B --all
+Run all checks and all advanced features. Equivalent to -qasrchgdtpRun. Enables all basic checks (IPQS, AbuseIPDB, Scamalytics, RIPE, Check-Host, HostTracker) and all advanced features (scoring, CDN detection, routing health, port scan, Reality test, usage history, suggestions).
+.TP
+.B -y <type>
+Auto-install VPN after server check (non-interactive). VPN type can be: singbox (default), xray, v2ray, shadowsocks, openvpn, or cisco. If type is not specified, defaults to singbox. Example: -y xray or -y singbox.
+.TP
+.B --ally [<type>]
+Run all checks and auto-install VPN (combines --all and -y). If VPN type is not specified, defaults to singbox. Example: --ally or --ally xray.
+
+.SH OTHER OPTIONS
+.TP
+.B -U
+Uninstall ipcheck and remove all installed files. Does not remove configuration file to preserve API keys. Requires root.
+.TP
+.B -H
+Show help message and exit.
+
+.SH VPN INSTALLATION
+When checking server IP with -S flag, if all checks pass, the tool will:
+1. Display IP address and Clean Score
+2. Prompt interactively for VPN installation
+3. Offer options: Sing-box, Xray, V2Ray, Shadowsocks-libev, OpenVPN, or OpenConnect (Cisco AnyConnect compatible)
+4. Install selected VPN if user confirms
+
+This feature requires root privileges and only works when checking a single server IP.
+
+.SH ENVIRONMENT VARIABLES
+API keys are loaded from ~/.config/ipcheck/keys.conf. The following keys are supported:
+.TP
+.B IPQS_KEY
+IPQualityScore API key (required for -q flag)
+.TP
+.B ABUSEIPDB_KEY
+AbuseIPDB API key (required for -a flag)
+.TP
+.B RIPE_KEY
+RIPE Atlas API key (required for -r flag)
+.TP
+.B HT_KEY
+HostTracker API key (optional, for -h flag)
+.TP
+.B IPREGISTRY_KEY
+ipregistry.io API key (optional, for enhanced scoring)
+
+.SH EXIT CODES
+0 - All IPs passed the failure threshold
+1 - One or more IPs failed the failure threshold
+2 - Critical error (no IPs checked, configuration error)
+
+.SH OUTPUT FORMATS
+The tool supports multiple output formats. Use -o <format> or -j (for JSON) to select:
+
+.TP
+.B JSON (-j or -o json)
+Structured JSON array of IP objects:
+.nf
+[
+  {
+    "ip": "1.2.3.4",
+    "clean_score": 85.5,
+    "checks": {
+      "IPQualityScore": {
+        "status": "PASSED",
+        "details": "Fraud Score: 10, Proxy: false"
+      },
+      ...
+    },
+    "raw_data": {
+      "ipqs": { ... },
+      "abuseipdb": { ... },
+      "scamalytics": { ... },
+      ...
+    },
+    "overall_status": "PASSED",
+    "failed_checks": 0,
+    "failure_threshold": 1
+  }
+]
+.fi
+
+.TP
+.B YAML (-o yaml)
+YAML format output. Best results with yq or python3 with PyYAML installed. Example:
+.nf
+ipcheck -i 8.8.8.8 -o yaml
+.fi
+
+.TP
+.B CSV (-o csv)
+CSV format suitable for Excel/Spreadsheet. Contains: IP, Clean Score, Overall Status, Failed Checks, Failure Threshold. Example:
+.nf
+ipcheck -i 8.8.8.8 -o csv
+.fi
+
+.TP
+.B XML (-o xml)
+XML format with structured data. Example:
+.nf
+ipcheck -i 8.8.8.8 -o xml
+.fi
+
+.TP
+.B Table (default)
+Human-readable table format with colored output. This is the default when no format is specified.
+
+.PP
+The clean_score field contains the IP Quality Clean Score (0-100), calculated from multiple sources. The raw_data field contains the complete API responses from all checked services. Raw data files are automatically cleaned up after the report is generated, but the data is included in the output for your reference.
+
+Advanced features generate separate JSON files in the status directory:
+- ip_score.json - Clean Score and metrics
+- cdn_status.json - CDN detection results
+- route_report.json - Routing health analysis
+- abuse_report.json - Abuse database results
+- port_scan.json - Port scanning results
+- reality_test.json - Reality compatibility test
+- usage_history.json - Prior usage detection
+- suggestions.json - Smart recommendations
+
+.SH INTERACTIVE MODE
+
+If \fBipcheck\fR is run without any arguments, it launches an interactive menu with ASCII art logo. The menu provides:
+
+.RS
+.IP \(bu 2
+Option 1: Check IP Address - Guides you through IP input and check selection
+.IP \(bu 2
+Option 2: Install VPN Server - Interactive VPN installation menu
+.IP \(bu 2
+Option 3: Uninstall IPCheck - Remove ipcheck and associated files
+.IP \(bu 2
+Option 4: Exit
+.RE
+
+.PP
+The IP check menu allows you to:
+.RS
+.IP \(bu 2
+Select input method (manual entry, server IP, or file)
+.IP \(bu 2
+Choose which checks to run (checkbox-style interface)
+.IP \(bu 2
+Toggle flags by typing their letters (e.g., type "gdt" to toggle g, d, t)
+.RE
+
+.SH EXAMPLES
+Basic IP check with all services:
+.nf
+ipcheck -i 8.8.8.8
+.fi
+
+Run specific checks only:
+.nf
+ipcheck -i 1.2.3.4 -q -a -s
+.fi
+
+Generate IP Quality Score:
+.nf
+ipcheck -i 8.8.8.8 -g
+.fi
+
+Detect CDN presence:
+.nf
+ipcheck -i 8.8.8.8 -d
+.fi
+
+Full analysis with all features:
+.nf
+ipcheck -i 8.8.8.8 -g -d -t -p -R -u -n
+.fi
+
+Check server IP and get VPN installation prompt:
+.nf
+ipcheck -S -g
+.fi
+
+Run all checks and all advanced features:
+.nf
+ipcheck -i 8.8.8.8 --all
+.fi
+
+Auto-install VPN (non-interactive):
+.nf
+ipcheck -S -y
+ipcheck -S -y xray
+.fi
+
+Run all checks and auto-install VPN:
+.nf
+ipcheck -S --ally
+ipcheck -S --ally xray
+.fi
+
+Use combined flags (equivalent to -g -d -t):
+.nf
+ipcheck -gdt -i 8.8.8.8
+.fi
+
+Get JSON output for automation:
+.nf
+ipcheck -i 8.8.8.8 -j
+.fi
+
+Enable JSON logging:
+.nf
+ipcheck -i 8.8.8.8 -l /var/log/ipcheck -L json
+.fi
+
+CI/CD integration:
+.nf
+ipcheck -i 8.8.8.8 -j -F 2
+.fi
+
+Check multiple IPs from file:
+.nf
+ipcheck -f /path/to/ips.txt -g -j
+.fi
+
+.SH FILES
+.TP
+~/.config/ipcheck/keys.conf
+Configuration file for API keys (permissions: 600). Contains API keys in format:
+.nf
+IPQS_KEY="your_key_here"
+ABUSEIPDB_KEY="your_key_here"
+.fi
+
+.SH REQUIREMENTS
+.TP
+Required:
+- curl (for API requests)
+- jq (for JSON parsing)
+.TP
+Optional (for advanced features):
+- mtr or traceroute (for -t)
+- nc (netcat) or ss (for -p)
+- openssl (for -R)
+- dig (for DNS lookups, usually pre-installed)
+- bc (for calculations, usually pre-installed)
+- whois (for -u, usually pre-installed)
+
+.SH INSTALLATION
+Quick one-line installation:
+.nf
+curl -fsSL https://raw.githubusercontent.com/amirmm4d/ipcheck-suite/main/setup.sh | sudo bash
+.fi
+
+.SH SECURITY
+- API keys are stored securely with 600 permissions
+- No credentials are logged or exposed
+- Port scanning includes warnings about intrusive nature
+- All API calls use timeouts to prevent hanging
+
+.SH BUGS
+Report bugs at: https://github.com/amirmm4d/ipcheck-suite/issues
+
+.SH AUTHOR
+Developed with ❤️ by amirmm4d from Iran 🇮🇷
+
+.SH SEE ALSO
+.BR curl (1),
+.BR jq (1),
+.BR mtr (8),
+.BR traceroute (8),
+.BR openssl (1)
