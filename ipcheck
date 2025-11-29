@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.1.0
+# ipcheck - Advanced, parallel IP reputation checker v2.1.1
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.1.0"
+IPCHECK_VERSION="2.1.1"
 
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
@@ -1393,7 +1393,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v2.1.0"
+    echo "    Advanced IP Reputation Checker v2.1.1"
     echo -e "${NC}"
     echo
 }
