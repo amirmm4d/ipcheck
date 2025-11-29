@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.1.6
+# ipcheck - Advanced, parallel IP reputation checker v2.1.8
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.1.6"
+IPCHECK_VERSION="2.1.7"
 
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
@@ -1392,7 +1392,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v2.1.6"
+    echo "    Advanced IP Reputation Checker v2.1.8"
     echo -e "${NC}"
     echo
 }
@@ -1494,7 +1494,40 @@ show_ip_check_menu() {
             fi
             ;;
         2)
-            result="INPUT:--server"
+            echo
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BLUE}🔍 Detecting server's public IP...${NC}"
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            local server_ip
+            server_ip=$(get_server_ip)
+            if [[ -n "$server_ip" ]] && [[ "$server_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+                echo -e "${GREEN}✓${NC} ${BLUE}Server's public IP: ${GREEN}$server_ip${NC}"
+                echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo
+                echo -ne "${BLUE}Press Enter to continue with IP check...${NC}"
+                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                    exec 3< /dev/tty
+                    IFS= read -r <&3
+                    exec 3<&-
+                else
+                    IFS= read -r
+                fi
+                result="INPUT:--server"
+            else
+                echo -e "${RED}✗${NC} ${RED}Error: Could not determine server's public IP.${NC}"
+                echo -e "${YELLOW}Please check your internet connection or try again later.${NC}"
+                echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo
+                echo -ne "${BLUE}Press Enter to go back...${NC}"
+                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                    exec 3< /dev/tty
+                    IFS= read -r <&3
+                    exec 3<&-
+                else
+                    IFS= read -r
+                fi
+                result="INPUT:CANCEL"
+            fi
             ;;
         3)
             echo
@@ -1532,6 +1565,41 @@ show_ip_check_menu() {
 show_check_options_menu() {
     local selected_flags=""
     
+    # Define all options with their flags and descriptions
+    local -a options=(
+        "q:IPQualityScore:Basic Checks"
+        "a:AbuseIPDB:Basic Checks"
+        "s:Scamalytics:Basic Checks"
+        "r:RIPE Atlas:Basic Checks"
+        "c:Check-Host:Basic Checks"
+        "h:HostTracker:Basic Checks"
+        "g:IP Quality Score:Advanced Features"
+        "d:CDN Detection:Advanced Features"
+        "t:Routing Health:Advanced Features"
+        "p:Port Scan:Advanced Features"
+        "R:Reality Test:Advanced Features"
+        "u:Usage History:Advanced Features"
+        "n:Suggestions:Advanced Features"
+        "j:JSON Output:Output Options"
+        "l:Enable Logging:Output Options"
+    )
+    
+    local current_index=0
+    local total_options=${#options[@]}
+    
+    # Read a single character from terminal
+    read_char() {
+        local char
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -rs -n1 char <&3
+            exec 3<&-
+        else
+            IFS= read -rs -n1 char
+        fi
+        printf '%s' "$char"
+    }
+    
     while true; do
         clear
         show_logo
@@ -1539,44 +1607,55 @@ show_check_options_menu() {
         echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
         
-        echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
-        local q_mark=" " a_mark=" " s_mark=" " r_mark=" " c_mark=" " h_mark=" "
-        [[ "$selected_flags" == *"q"* ]] && q_mark="✓"
-        [[ "$selected_flags" == *"a"* ]] && a_mark="✓"
-        [[ "$selected_flags" == *"s"* ]] && s_mark="✓"
-        [[ "$selected_flags" == *"r"* ]] && r_mark="✓"
-        [[ "$selected_flags" == *"c"* ]] && c_mark="✓"
-        [[ "$selected_flags" == *"h"* ]] && h_mark="✓"
-        echo -e "  ${YELLOW}[$q_mark]${NC} q - IPQualityScore"
-        echo -e "  ${YELLOW}[$a_mark]${NC} a - AbuseIPDB"
-        echo -e "  ${YELLOW}[$s_mark]${NC} s - Scamalytics"
-        echo -e "  ${YELLOW}[$r_mark]${NC} r - RIPE Atlas"
-        echo -e "  ${YELLOW}[$c_mark]${NC} c - Check-Host"
-        echo -e "  ${YELLOW}[$h_mark]${NC} h - HostTracker"
+        local current_section=""
+        local option_index=0
         
-        echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
-        local g_mark=" " d_mark=" " t_mark=" " p_mark=" " R_mark=" " u_mark=" " n_mark=" "
-        [[ "$selected_flags" == *"g"* ]] && g_mark="✓"
-        [[ "$selected_flags" == *"d"* ]] && d_mark="✓"
-        [[ "$selected_flags" == *"t"* ]] && t_mark="✓"
-        [[ "$selected_flags" == *"p"* ]] && p_mark="✓"
-        [[ "$selected_flags" == *"R"* ]] && R_mark="✓"
-        [[ "$selected_flags" == *"u"* ]] && u_mark="✓"
-        [[ "$selected_flags" == *"n"* ]] && n_mark="✓"
-        echo -e "  ${YELLOW}[$g_mark]${NC} g - IP Quality Score"
-        echo -e "  ${YELLOW}[$d_mark]${NC} d - CDN Detection"
-        echo -e "  ${YELLOW}[$t_mark]${NC} t - Routing Health"
-        echo -e "  ${YELLOW}[$p_mark]${NC} p - Port Scan"
-        echo -e "  ${YELLOW}[$R_mark]${NC} R - Reality Test"
-        echo -e "  ${YELLOW}[$u_mark]${NC} u - Usage History"
-        echo -e "  ${YELLOW}[$n_mark]${NC} n - Suggestions"
-        
-        echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
-        local j_mark=" " l_mark=" "
-        [[ "$selected_flags" == *"j"* ]] && j_mark="✓"
-        [[ "$selected_flags" == *"l"* ]] && l_mark="✓"
-        echo -e "  ${YELLOW}[$j_mark]${NC} j - JSON Output"
-        echo -e "  ${YELLOW}[$l_mark]${NC} l - Enable Logging"
+        for option in "${options[@]}"; do
+            local flag="${option%%:*}"
+            local desc="${option#*:}"
+            desc="${desc%%:*}"
+            local section="${option##*:}"
+            
+            # Print section header when section changes
+            if [[ "$section" != "$current_section" ]]; then
+                if [[ -n "$current_section" ]]; then
+                    echo
+                fi
+                case "$section" in
+                    "Basic Checks")
+                        echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
+                        ;;
+                    "Advanced Features")
+                        echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
+                        ;;
+                    "Output Options")
+                        echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
+                        ;;
+                esac
+                current_section="$section"
+            fi
+            
+            # Check if selected
+            local is_selected=false
+            [[ "$selected_flags" == *"$flag"* ]] && is_selected=true
+            
+            # Highlight current option
+            if [[ $option_index -eq $current_index ]]; then
+                if $is_selected; then
+                    echo -e "  ${GREEN}▶${NC} ${YELLOW}[${GREEN}✓${YELLOW}]${NC} ${GREEN}$flag${NC} - $desc"
+                else
+                    echo -e "  ${GREEN}▶${NC} ${YELLOW}[${NC} ${YELLOW}]${NC} ${GREEN}$flag${NC} - $desc"
+                fi
+            else
+                if $is_selected; then
+                    echo -e "    ${YELLOW}[${GREEN}✓${YELLOW}]${NC} $flag - $desc"
+                else
+                    echo -e "    ${YELLOW}[${NC} ${YELLOW}]${NC} $flag - $desc"
+                fi
+            fi
+            
+            ((option_index++))
+        done
         
         echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         if [[ -n "$selected_flags" ]]; then
@@ -1586,49 +1665,56 @@ show_check_options_menu() {
         fi
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
         echo -e "${BLUE}Instructions:${NC}"
-        echo -e "  • Type flag letters to toggle (e.g., ${YELLOW}gdt${NC} to toggle g, d, t)"
-        echo -e "  • Press ${YELLOW}[Enter]${NC} to run with current selection"
-        echo -e "  • ${YELLOW}[a]${NC} = Select all / ${YELLOW}[c]${NC} = Clear all / ${YELLOW}[d]${NC} = Done"
+        echo -e "  ${YELLOW}↑${NC}/${YELLOW}↓${NC} - Navigate  ${YELLOW}Space${NC}/${YELLOW}Enter${NC} - Toggle  ${YELLOW}a${NC} - Select all  ${YELLOW}c${NC} - Clear  ${YELLOW}d${NC} - Done"
         echo
-        read -p "Your choice: " choice
         
-        case "$choice" in
-            "")
-                if [[ -n "$selected_flags" ]]; then
-                    IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
-                    return
-                else
-                    IPCHECK_MENU_RESULT="FLAGS:all"
-                    return
-                fi
-                ;;
-            "c"|"C")
-                selected_flags=""
-                ;;
-            "a"|"A")
-                selected_flags="qasrchgdtpRunjl"
-                ;;
-            "d"|"D")
-                IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
-                return
-                ;;
-            *)
-                # Toggle flags - handle both single and multiple characters
-                for (( i=0; i<${#choice}; i++ )); do
-                    local char="${choice:$i:1}"
-                    # Skip if it's a command character
-                    [[ "$char" == "a" ]] && [[ ${#choice} -eq 1 ]] && continue
-                    [[ "$char" == "c" ]] && [[ ${#choice} -eq 1 ]] && continue
-                    [[ "$char" == "d" ]] && [[ ${#choice} -eq 1 ]] && continue
-                    
-                    if [[ "$selected_flags" == *"$char"* ]]; then
-                        selected_flags="${selected_flags//$char/}"
-                    else
-                        selected_flags+="$char"
-                    fi
-                done
-                ;;
-        esac
+        # Read key input
+        local key
+        key=$(read_char)
+        
+        # Handle escape sequences for arrow keys
+        if [[ "$key" == $'\x1b' ]]; then
+            local key2 key3
+            key2=$(read_char)
+            if [[ "$key2" == '[' ]]; then
+                key3=$(read_char)
+                case "$key3" in
+                    'A') # Up arrow
+                        if [[ $current_index -gt 0 ]]; then
+                            ((current_index--))
+                        else
+                            current_index=$((total_options - 1))
+                        fi
+                        ;;
+                    'B') # Down arrow
+                        if [[ $current_index -lt $((total_options - 1)) ]]; then
+                            ((current_index++))
+                        else
+                            current_index=0
+                        fi
+                        ;;
+                esac
+            fi
+        elif [[ "$key" == $'\x20' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
+            # Space or Enter - toggle current option
+            local current_flag
+            current_flag=$(echo "${options[$current_index]}" | cut -d: -f1)
+            if [[ "$selected_flags" == *"$current_flag"* ]]; then
+                selected_flags="${selected_flags//$current_flag/}"
+            else
+                selected_flags+="$current_flag"
+            fi
+        elif [[ "$key" == 'a' ]] || [[ "$key" == 'A' ]]; then
+            # Select all
+            selected_flags="qasrchgdtpRunjl"
+        elif [[ "$key" == 'c' ]] || [[ "$key" == 'C' ]]; then
+            # Clear all
+            selected_flags=""
+        elif [[ "$key" == 'd' ]] || [[ "$key" == 'D' ]]; then
+            # Done
+            IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
+            return
+        fi
     done
 }
 
@@ -1774,7 +1860,7 @@ interactive_menu() {
                     continue
                 fi
                 
-                # Call check options menu directly
+                # Call check options menu directly (interactive with arrow keys)
                 show_check_options_menu
                 local check_result="$IPCHECK_MENU_RESULT"
                 
@@ -1880,9 +1966,10 @@ process_main_args() {
     # Pre-process arguments to handle combined flags
     local processed_args=()
     local i=0
-    while [[ $i -lt $# ]]; do
-        local arg="${!((i+1))}"
-        local next_arg="${!((i+2))}"
+    local args_array=("$@")
+    while [[ $i -lt ${#args_array[@]} ]]; do
+        local arg="${args_array[$i]}"
+        local next_arg="${args_array[$((i+1))]:-}"
         
         if [[ "$arg" =~ ^-[a-zA-Z]{2,}$ ]] && [[ ! "$next_arg" =~ ^[0-9]+$ ]]; then
             local flags="${arg#-}"
@@ -2483,13 +2570,11 @@ main() {
     
     # Pre-process arguments to handle combined flags like -gdt
     local processed_args=()
-    local i=1
-    while [[ $i -le $# ]]; do
-        local arg="${!i}"
-        local next_arg=""
-        if [[ $i -lt $# ]]; then
-            next_arg="${!((i+1))}"
-        fi
+    local args_array=("$@")
+    local i=0
+    while [[ $i -lt ${#args_array[@]} ]]; do
+        local arg="${args_array[$i]}"
+        local next_arg="${args_array[$((i+1))]:-}"
         
         # Check if it's a combined flag (starts with - and has multiple letters, not followed by a number)
         if [[ "$arg" =~ ^-[a-zA-Z]{2,}$ ]] && [[ ! "$next_arg" =~ ^[0-9]+$ ]] && [[ "$arg" != "-"*[0-9]* ]]; then
