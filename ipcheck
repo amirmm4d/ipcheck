@@ -1400,15 +1400,39 @@ show_logo() {
 show_main_menu() {
     clear
     show_logo
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}Main Menu / منوی اصلی${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-    echo -e "  ${YELLOW}1)${NC} Check IP Address / بررسی آدرس IP"
-    echo -e "  ${YELLOW}2)${NC} Install VPN Server / نصب سرور VPN"
-    echo -e "  ${YELLOW}3)${NC} Uninstall IPCheck / حذف IPCheck"
-    echo -e "  ${YELLOW}4)${NC} Exit / خروج"
+    
+    # Welcome message
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║${NC}  ${BLUE}Welcome to IPCheck Suite!${NC}                                    ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${YELLOW}Comprehensive IP Reputation & Network Analysis Tool${NC}         ${GREEN}║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo
-    read -p "Select option (1-4): " main_choice
+    
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}📋 Main Menu / منوی اصلی${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    
+    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}🔍 Check IP Address${NC} / ${BLUE}بررسی آدرس IP${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Analyze IP reputation, quality score, CDN detection, routing health"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} بررسی اعتبار IP، امتیاز کیفیت، تشخیص CDN، سلامت مسیریابی"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}🔧 Install VPN Server${NC} / ${BLUE}نصب سرور VPN${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Install Sing-box, Xray, V2Ray, Shadowsocks, OpenVPN, or OpenConnect"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} نصب Sing-box، Xray، V2Ray، Shadowsocks، OpenVPN یا OpenConnect"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}🗑️  Uninstall IPCheck${NC} / ${BLUE}حذف IPCheck${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Remove IPCheck from your system"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} حذف IPCheck از سیستم شما"
+    echo -e "${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}❌ Exit${NC} / ${BLUE}خروج${NC}"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Exit the application"
+    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} خروج از برنامه"
+    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
+    echo
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -ne "${BLUE}👉 Select an option (1-4): ${NC}"
+    read -r main_choice
     echo "$main_choice"
 }
 
