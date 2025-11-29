@@ -79,27 +79,80 @@ check_dependencies() {
     fi
 
     # Auto-install if non-interactive mode or stdin is not a terminal
-    if [[ "$NON_INTERACTIVE" == "true" ]] || [[ ! -t 0 ]]; then
+    local auto_install=false
+    # Check if we're in non-interactive mode (piped input, CI, or -y flag)
+    if [[ "$NON_INTERACTIVE" == "true" ]] || [[ ! -t 0 ]] || [[ -p /dev/stdin ]]; then
+        auto_install=true
         echo -e "${BLUE}Auto-installing missing dependencies...${NC}"
     else
-        read -p "Do you want to try to install missing dependencies automatically? (y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${RED}🛑 Installation aborted. Please install dependencies manually.${NC}"
-            exit 1
+        # Try to read from user, but if it fails (non-interactive), auto-install
+        if ! read -t 5 -p "Do you want to try to install missing dependencies automatically? (y/n) " -n 1 -r 2>/dev/null; then
+            auto_install=true
+            echo -e "\n${BLUE}Auto-installing missing dependencies (non-interactive mode detected)...${NC}"
+        else
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                auto_install=true
+            else
+                echo -e "${RED}🛑 Installation aborted. Please install dependencies manually.${NC}"
+                exit 1
+            fi
         fi
     fi
 
-    if [ -f /etc/os-release ]; then . /etc/os-release; fi
-    case "${ID:-}" in
-    ubuntu | debian | mint) apt-get update && apt-get install -y "${missing_deps[@]}" ;;
-    fedora | centos | rhel) if command -v dnf &>/dev/null; then dnf install -y "${missing_deps[@]}"; else yum install -y "${missing_deps[@]}"; fi ;;
-    arch) pacman -Syu --noconfirm "${missing_deps[@]}" ;;
+    if [[ "$auto_install" != "true" ]]; then
+        return 1
+    fi
+
+    # Detect OS and install dependencies
+    local os_id=""
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        os_id="${ID:-}"
+    fi
+
+    echo -e "${BLUE}Detected OS: ${os_id:-unknown}${NC}"
+    
+    case "${os_id}" in
+    ubuntu | debian | mint)
+        echo -e "${BLUE}Installing ${missing_deps[*]} using apt-get...${NC}"
+        apt-get update -qq && apt-get install -y "${missing_deps[@]}" || {
+            echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
+            exit 1
+        }
+        ;;
+    fedora | centos | rhel)
+        echo -e "${BLUE}Installing ${missing_deps[*]} using package manager...${NC}"
+        if command -v dnf &>/dev/null; then
+            dnf install -y "${missing_deps[@]}" || {
+                echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
+                exit 1
+            }
+        elif command -v yum &>/dev/null; then
+            yum install -y "${missing_deps[@]}" || {
+                echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
+                exit 1
+            }
+        else
+            echo -e "${RED}❌ No package manager found (dnf/yum). Please install manually: ${missing_deps[*]}${NC}"
+            exit 1
+        fi
+        ;;
+    arch)
+        echo -e "${BLUE}Installing ${missing_deps[*]} using pacman...${NC}"
+        pacman -Syu --noconfirm "${missing_deps[@]}" || {
+            echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
+            exit 1
+        }
+        ;;
     *)
-        echo -e "${RED}❌ Unsupported OS. Please install manually: ${missing_deps[*]}${NC}"
+        echo -e "${RED}❌ Unsupported OS (${os_id:-unknown}). Please install manually: ${missing_deps[*]}${NC}"
+        echo -e "${YELLOW}You can install jq manually using your package manager.${NC}"
         exit 1
         ;;
     esac
+    
+    echo -e "${GREEN}✅ Dependencies installed successfully.${NC}"
 }
 
 # Interactively prompts the user for API keys.
