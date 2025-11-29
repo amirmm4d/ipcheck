@@ -436,9 +436,9 @@ show_post_install_warnings() {
             else
                 echo -e "${RED}Error: Cannot read configuration file: ${config_to_check}${NC}"
             fi
-    elif [[ "$check_existing" == "true" ]]; then
-        echo -e "${YELLOW}Configuration file not found: ${config_to_check}${NC}"
-    fi
+        elif [[ "$check_existing" == "true" ]]; then
+            echo -e "${YELLOW}Configuration file not found: ${config_to_check}${NC}"
+        fi
     
     # Show missing keys
     if [ ${#MISSING_KEYS_RESULT[@]} -gt 0 ]; then
