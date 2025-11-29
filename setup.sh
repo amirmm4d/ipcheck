@@ -274,9 +274,14 @@ prompt_and_save_keys() {
         saved_config_path=$(<"$LAST_CONFIG_PATH_FILE")
         saved_config_path=$(echo "$saved_config_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         # Validate that the saved path still exists or is valid
-        if [[ -n "$saved_config_path" ]] && [[ -f "$saved_config_path" ]]; then
-            echo -e "${GREEN}Found previous configuration file: ${BLUE}$saved_config_path${NC}"
-            echo -e "${YELLOW}Using saved path. Press Enter to use it, or enter a new path:${NC}"
+        if [[ -n "$saved_config_path" ]]; then
+            if [[ -f "$saved_config_path" ]]; then
+                echo -e "${GREEN}Found previous configuration file: ${BLUE}$saved_config_path${NC}"
+            else
+                echo -e "${YELLOW}Previous configuration file path: ${BLUE}$saved_config_path${NC}"
+                echo -e "${YELLOW}(File not found, will create new one)${NC}"
+            fi
+            echo -e "${YELLOW}Press Enter to use saved path, or enter a new path:${NC}"
         else
             saved_config_path=""
         fi
@@ -614,23 +619,32 @@ do_install() {
         # Check for ipcheck in root
         if [[ -f "$IPCHECK_SCRIPT" ]] && [[ -x "$IPCHECK_SCRIPT" ]]; then
             tools_to_install+=("ipcheck")
+            echo -e "${GREEN}✓ ipcheck found locally${NC}"
         else
-            # If ipcheck not found locally, download from GitHub
-            echo -e "${YELLOW}ipcheck not found locally. Downloading from GitHub...${NC}"
-            local temp_dir
-            temp_dir=$(mktemp -d)
-            trap "rm -rf '$temp_dir'" EXIT
-            
-            if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/ipcheck" -o "$temp_dir/ipcheck" 2>/dev/null; then
-                chmod +x "$temp_dir/ipcheck"
-                IPCHECK_SCRIPT="$temp_dir/ipcheck"
-                DOWNLOADED_IPCHECK=true
+            # Check if ipcheck is already installed in system
+            if [[ -f "$BIN_DIR/ipcheck" ]] && [[ -x "$BIN_DIR/ipcheck" ]]; then
+                echo -e "${GREEN}✓ ipcheck is already installed at ${BLUE}$BIN_DIR/ipcheck${NC}"
+                echo -e "${YELLOW}Using installed version. To update, run the installer again.${NC}"
                 tools_to_install+=("ipcheck")
-                echo -e "${GREEN}✓ Downloaded ipcheck${NC}"
+                IPCHECK_SCRIPT="$BIN_DIR/ipcheck"
             else
-                echo -e "${RED}Error: Failed to download ipcheck from GitHub.${NC}" >&2
-                echo -e "${YELLOW}Please make sure you have internet connection and the repository is accessible.${NC}" >&2
-                exit 1
+                # If ipcheck not found locally, download from GitHub
+                echo -e "${YELLOW}ipcheck not found locally. Downloading from GitHub...${NC}"
+                local temp_dir
+                temp_dir=$(mktemp -d)
+                trap "rm -rf '$temp_dir'" EXIT
+                
+                if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/ipcheck" -o "$temp_dir/ipcheck" 2>/dev/null; then
+                    chmod +x "$temp_dir/ipcheck"
+                    IPCHECK_SCRIPT="$temp_dir/ipcheck"
+                    DOWNLOADED_IPCHECK=true
+                    tools_to_install+=("ipcheck")
+                    echo -e "${GREEN}✓ Downloaded ipcheck${NC}"
+                else
+                    echo -e "${RED}Error: Failed to download ipcheck from GitHub.${NC}" >&2
+                    echo -e "${YELLOW}Please make sure you have internet connection and the repository is accessible.${NC}" >&2
+                    exit 1
+                fi
             fi
         fi
         # Check for tools in tools/ directory
@@ -745,6 +759,13 @@ do_install() {
 
     echo -e "\n${GREEN}🎉 Installation Complete! 🎉${NC}"
     show_post_install_warnings
+    
+    # Show GitHub link and star request
+    echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}⭐ Star us on GitHub!${NC}"
+    echo -e "${YELLOW}If you find IPCheck useful, please consider giving us a star:${NC}"
+    echo -e "${GREEN}https://github.com/amirmm4d/ipcheck${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "\n${BLUE}================================================================${NC}"
     echo -e "${GREEN}This tool was developed with ❤️ by amirmm4d from Iran 🇮🇷${NC}"
     echo -e "${BLUE}================================================================${NC}"
