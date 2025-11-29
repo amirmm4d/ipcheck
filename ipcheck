@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.1.1
+# ipcheck - Advanced, parallel IP reputation checker v2.1.2
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.1.1"
+IPCHECK_VERSION="2.1.2"
 
 if [[ -t 1 ]]; then
     GREEN=$(tput setaf 2)
@@ -1393,7 +1393,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v2.1.1"
+    echo "    Advanced IP Reputation Checker v2.1.2"
     echo -e "${NC}"
     echo
 }
@@ -1684,10 +1684,18 @@ interactive_menu() {
                     echo -e "${RED}Error: Uninstall requires root privileges.${NC}"
                     read -p "Press Enter to continue..."
                 else
-                    echo -e "${YELLOW}Are you sure you want to uninstall IPCheck? (y/n): ${NC}"
-                    read -n 1 confirm
-                    echo
-                    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                    echo -e "${YELLOW}Are you sure you want to uninstall IPCheck? (y/n) [default: y]: ${NC}"
+                    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                        exec 3< /dev/tty
+                        IFS= read -r confirm <&3
+                        exec 3<&-
+                    else
+                        IFS= read -r confirm
+                    fi
+                    # Trim whitespace and convert to lowercase
+                    confirm=$(echo "$confirm" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
+                    # If empty or y, proceed with uninstall
+                    if [[ -z "$confirm" ]] || [[ "$confirm" == "y" ]]; then
                         uninstall_ipcheck
                     fi
                 fi
