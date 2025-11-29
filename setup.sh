@@ -671,7 +671,7 @@ do_install() {
     echo -e "\n${BLUE}--- Installing Files ---${NC}"
     
     # Handle ipcheck in root directory
-    if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]] && [[ -f "$IPCHECK_SCRIPT" ]]; then
+    if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]] && [[ -n "$IPCHECK_SCRIPT" ]] && [[ -f "$IPCHECK_SCRIPT" ]]; then
         # Check if ipcheck is already installed
         local installed_version="unknown"
         local new_version="unknown"
@@ -703,30 +703,56 @@ do_install() {
                         install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
                         gzip -f "$MAN_DIR/ipcheck.1"
                     fi
-                    continue
+                    # Skip to next tool (don't install ipcheck)
+                    IPCHECK_SCRIPT=""
                 fi
             fi
         fi
         
-        echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
-        install -m 755 "$IPCHECK_SCRIPT" "$BIN_DIR/ipcheck"
-        local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
-        if [ -f "$man_page_path" ]; then
-            echo -e "  ➡️  Installing man page for '${YELLOW}ipcheck${NC}'..."
-            install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
-            gzip -f "$MAN_DIR/ipcheck.1"
-        else
-            # Try to download man page from GitHub if not found locally
-            echo -e "  ➡️  Downloading man page for '${YELLOW}ipcheck${NC}' from GitHub..."
-            local temp_man
-            temp_man=$(mktemp)
-            if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/man/ipcheck.1" -o "$temp_man" 2>/dev/null; then
-                install -Dm 644 "$temp_man" "$MAN_DIR/ipcheck.1"
+        # Skip installation if IPCHECK_SCRIPT is the same as target (already installed)
+        if [[ "$IPCHECK_SCRIPT" == "$BIN_DIR/ipcheck" ]]; then
+            echo -e "  ${GREEN}✓ ipcheck is already installed. Skipping installation.${NC}"
+            # Still install/update man page if needed
+            local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
+            if [ -f "$man_page_path" ]; then
+                echo -e "  ➡️  Updating man page for '${YELLOW}ipcheck${NC}'..."
+                install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
                 gzip -f "$MAN_DIR/ipcheck.1"
-                rm -f "$temp_man"
-                echo -e "${GREEN}✓ Man page installed${NC}"
             else
-                echo -e "${YELLOW}⚠️  Could not download man page (optional)${NC}"
+                # Try to download man page from GitHub if not found locally
+                echo -e "  ➡️  Downloading man page for '${YELLOW}ipcheck${NC}' from GitHub..."
+                local temp_man
+                temp_man=$(mktemp)
+                if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/man/ipcheck.1" -o "$temp_man" 2>/dev/null; then
+                    install -Dm 644 "$temp_man" "$MAN_DIR/ipcheck.1"
+                    gzip -f "$MAN_DIR/ipcheck.1"
+                    rm -f "$temp_man"
+                    echo -e "${GREEN}✓ Man page installed${NC}"
+                else
+                    echo -e "${YELLOW}⚠️  Could not download man page (optional)${NC}"
+                fi
+            fi
+        else
+            echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
+            install -m 755 "$IPCHECK_SCRIPT" "$BIN_DIR/ipcheck"
+            local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
+            if [ -f "$man_page_path" ]; then
+                echo -e "  ➡️  Installing man page for '${YELLOW}ipcheck${NC}'..."
+                install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
+                gzip -f "$MAN_DIR/ipcheck.1"
+            else
+                # Try to download man page from GitHub if not found locally
+                echo -e "  ➡️  Downloading man page for '${YELLOW}ipcheck${NC}' from GitHub..."
+                local temp_man
+                temp_man=$(mktemp)
+                if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/man/ipcheck.1" -o "$temp_man" 2>/dev/null; then
+                    install -Dm 644 "$temp_man" "$MAN_DIR/ipcheck.1"
+                    gzip -f "$MAN_DIR/ipcheck.1"
+                    rm -f "$temp_man"
+                    echo -e "${GREEN}✓ Man page installed${NC}"
+                else
+                    echo -e "${YELLOW}⚠️  Could not download man page (optional)${NC}"
+                fi
             fi
         fi
     fi
