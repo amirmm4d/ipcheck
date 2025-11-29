@@ -181,7 +181,10 @@ prompt_and_save_keys() {
     local custom_path=""
     # Only ask for input if we're in interactive mode and stdin is a terminal
     if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
-        read -p "Press Enter to use default, or enter a custom path: " custom_path
+        echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
+        read -r custom_path
+        # Trim whitespace
+        custom_path=$(echo "$custom_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     else
         echo -e "${BLUE}Using default path (non-interactive mode)${NC}"
     fi
@@ -331,14 +334,23 @@ show_post_install_warnings() {
     if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
         echo -e "\n${BLUE}Do you want to check an existing configuration file?${NC}"
         echo -e "Default: ${BLUE}$default_config_file${NC}"
-        read -p "Press Enter to use default, or enter a custom path (or 'skip' to skip): " custom_check_path
+        echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
+        
+        # Read input from user (wait for Enter key)
+        local custom_check_path=""
+        read -r custom_check_path
         
         local config_to_check=""
+        # Trim whitespace
+        custom_check_path=$(echo "$custom_check_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
         if [[ -z "$custom_check_path" ]] || [[ "$custom_check_path" == "" ]]; then
             config_to_check="$default_config_file"
             check_existing=true
+            echo -e "${GREEN}✓ Using default path: ${config_to_check}${NC}"
         elif [[ "$custom_check_path" == "skip" ]] || [[ "$custom_check_path" == "Skip" ]] || [[ "$custom_check_path" == "SKIP" ]]; then
             check_existing=false
+            echo -e "${YELLOW}⊘ Skipping config file check.${NC}"
         else
             # Expand ~ and resolve path
             config_to_check=$(eval echo "$custom_check_path")
@@ -347,6 +359,7 @@ show_post_install_warnings() {
                 config_to_check="$config_to_check/keys.conf"
             fi
             check_existing=true
+            echo -e "${BLUE}✓ Using custom path: ${config_to_check}${NC}"
         fi
         
         if [[ "$check_existing" == "true" ]] && [[ -f "$config_to_check" ]]; then
