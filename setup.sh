@@ -21,6 +21,7 @@ MAN_PAGES_DIR="$SCRIPT_DIR/man"
 IPCHECK_SCRIPT="$SCRIPT_DIR/ipcheck"
 # Flag to track if we downloaded ipcheck
 DOWNLOADED_IPCHECK=false
+DOWNLOADED_TEMP_DIR=""  # Store temp directory for cleanup
 
 # Using tput for better compatibility
 if [[ -t 1 ]]; then
@@ -624,15 +625,55 @@ do_install() {
             # Check if ipcheck is already installed in system
             if [[ -f "$BIN_DIR/ipcheck" ]] && [[ -x "$BIN_DIR/ipcheck" ]]; then
                 echo -e "${GREEN}✓ ipcheck is already installed at ${BLUE}$BIN_DIR/ipcheck${NC}"
-                echo -e "${YELLOW}Using installed version. To update, run the installer again.${NC}"
-                tools_to_install+=("ipcheck")
-                IPCHECK_SCRIPT="$BIN_DIR/ipcheck"
+                
+                # Download latest version from GitHub to check for updates
+                echo -e "${BLUE}Checking for updates from GitHub...${NC}"
+                local temp_dir
+                temp_dir=$(mktemp -d)
+                # Don't trap here - we'll clean up after installation
+                
+                if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/ipcheck" -o "$temp_dir/ipcheck" 2>/dev/null; then
+                    chmod +x "$temp_dir/ipcheck"
+                    local installed_version
+                    local latest_version
+                    installed_version=$(get_ipcheck_version "$BIN_DIR/ipcheck")
+                    latest_version=$(get_ipcheck_version "$temp_dir/ipcheck")
+                    
+                    echo -e "  ${YELLOW}Installed version: ${installed_version}${NC}"
+                    echo -e "  ${YELLOW}Latest version: ${latest_version}${NC}"
+                    
+                    # Compare versions
+                    if compare_versions "$latest_version" "$installed_version"; then
+                        if [[ "$latest_version" != "$installed_version" ]]; then
+                            echo -e "  ${GREEN}✓ Update available! Will update to ${latest_version}${NC}"
+                            IPCHECK_SCRIPT="$temp_dir/ipcheck"
+                            DOWNLOADED_IPCHECK=true
+                            DOWNLOADED_TEMP_DIR="$temp_dir"  # Store temp dir for cleanup
+                            tools_to_install+=("ipcheck")
+                        else
+                            echo -e "  ${GREEN}✓ ipcheck is already up to date.${NC}"
+                            IPCHECK_SCRIPT="$BIN_DIR/ipcheck"
+                            tools_to_install+=("ipcheck")
+                            rm -rf "$temp_dir"
+                        fi
+                    else
+                        echo -e "  ${YELLOW}⚠ Installed version is newer or same. Keeping current version.${NC}"
+                        IPCHECK_SCRIPT="$BIN_DIR/ipcheck"
+                        tools_to_install+=("ipcheck")
+                        rm -rf "$temp_dir"
+                    fi
+                else
+                    echo -e "${YELLOW}⚠ Could not check for updates. Using installed version.${NC}"
+                    IPCHECK_SCRIPT="$BIN_DIR/ipcheck"
+                    tools_to_install+=("ipcheck")
+                    rm -rf "$temp_dir"
+                fi
             else
                 # If ipcheck not found locally, download from GitHub
                 echo -e "${YELLOW}ipcheck not found locally. Downloading from GitHub...${NC}"
                 local temp_dir
                 temp_dir=$(mktemp -d)
-                trap "rm -rf '$temp_dir'" EXIT
+                # Don't trap here - we'll clean up after installation
                 
                 if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/ipcheck" -o "$temp_dir/ipcheck" 2>/dev/null; then
                     chmod +x "$temp_dir/ipcheck"
@@ -672,44 +713,7 @@ do_install() {
     
     # Handle ipcheck in root directory
     if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]] && [[ -n "$IPCHECK_SCRIPT" ]] && [[ -f "$IPCHECK_SCRIPT" ]]; then
-        # Check if ipcheck is already installed
-        local installed_version="unknown"
-        local new_version="unknown"
-        
-        if [[ -f "$BIN_DIR/ipcheck" ]] && [[ -x "$BIN_DIR/ipcheck" ]]; then
-            installed_version=$(get_ipcheck_version "$BIN_DIR/ipcheck")
-            new_version=$(get_ipcheck_version "$IPCHECK_SCRIPT")
-            
-            echo -e "  ${BLUE}Checking installed version...${NC}"
-            echo -e "  ${YELLOW}Installed version: ${installed_version}${NC}"
-            echo -e "  ${YELLOW}New version: ${new_version}${NC}"
-            
-            # Compare versions
-            if compare_versions "$new_version" "$installed_version"; then
-                if [[ "$new_version" != "$installed_version" ]]; then
-                    echo -e "  ${GREEN}✓ Update available! Updating ipcheck...${NC}"
-                else
-                    echo -e "  ${GREEN}✓ ipcheck is already up to date.${NC}"
-                fi
-            else
-                echo -e "  ${YELLOW}⚠ Installed version is newer or same. Keeping current version.${NC}"
-                # Skip installation if installed version is newer or same
-                if [[ "$installed_version" != "unknown" ]] && [[ "$new_version" != "unknown" ]]; then
-                    echo -e "  ${BLUE}Skipping ipcheck installation (already up to date).${NC}"
-                    # Still install man page if needed
-                    local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
-                    if [ -f "$man_page_path" ]; then
-                        echo -e "  ➡️  Updating man page for '${YELLOW}ipcheck${NC}'..."
-                        install -Dm 644 "$man_page_path" "$MAN_DIR/ipcheck.1"
-                        gzip -f "$MAN_DIR/ipcheck.1"
-                    fi
-                    # Skip to next tool (don't install ipcheck)
-                    IPCHECK_SCRIPT=""
-                fi
-            fi
-        fi
-        
-        # Skip installation if IPCHECK_SCRIPT is the same as target (already installed)
+        # Skip installation if IPCHECK_SCRIPT is the same as target (already installed and up to date)
         if [[ "$IPCHECK_SCRIPT" == "$BIN_DIR/ipcheck" ]]; then
             echo -e "  ${GREEN}✓ ipcheck is already installed. Skipping installation.${NC}"
             # Still install/update man page if needed
@@ -735,6 +739,13 @@ do_install() {
         else
             echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
             install -m 755 "$IPCHECK_SCRIPT" "$BIN_DIR/ipcheck"
+            
+            # Clean up temp directory if we downloaded from GitHub
+            if [[ -n "$DOWNLOADED_TEMP_DIR" ]] && [[ -d "$DOWNLOADED_TEMP_DIR" ]]; then
+                rm -rf "$DOWNLOADED_TEMP_DIR"
+                DOWNLOADED_TEMP_DIR=""
+            fi
+            
             local man_page_path="$MAN_PAGES_DIR/ipcheck.1"
             if [ -f "$man_page_path" ]; then
                 echo -e "  ➡️  Installing man page for '${YELLOW}ipcheck${NC}'..."
