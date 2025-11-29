@@ -179,13 +179,19 @@ prompt_and_save_keys() {
     echo -e "Default: ${BLUE}$default_config_file${NC}"
     
     local custom_path=""
-    # Try to read from terminal if possible
-    if [[ -t 0 ]] || [[ -c /dev/tty ]]; then
+    # Try to read from terminal if we're not in non-interactive mode
+    if [[ "$NON_INTERACTIVE" != "true" ]]; then
         echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
-        if [[ -c /dev/tty ]]; then
-            read -r custom_path < /dev/tty
-        else
+        # Force read from /dev/tty to ensure we get user input
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            read -r custom_path <&3
+            exec 3<&-
+        elif [[ -t 0 ]]; then
             read -r custom_path
+        else
+            # Fallback: try stdin anyway
+            read -r custom_path || custom_path=""
         fi
         # Trim whitespace
         custom_path=$(echo "$custom_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -343,17 +349,17 @@ show_post_install_warnings() {
         echo -e "Default: ${BLUE}$default_config_file${NC}"
         echo -ne "${YELLOW}Enter custom path (or press Enter for default): ${NC}"
         
-        # Read input directly from terminal (use /dev/tty if available, otherwise stdin)
+        # Force read from /dev/tty to ensure we get user input
         local custom_check_path=""
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            # Read from terminal device directly
-            read -r custom_check_path < /dev/tty 2>/dev/null || read -r custom_check_path
+            exec 3< /dev/tty
+            read -r custom_check_path <&3
+            exec 3<&-
         elif [[ -t 0 ]]; then
-            # Read from stdin if it's a terminal
             read -r custom_check_path
         else
-            # Fallback: try to read anyway
-            read -r custom_check_path < /dev/tty 2>/dev/null || custom_check_path=""
+            # Fallback: try stdin anyway
+            read -r custom_check_path || custom_check_path=""
         fi
         
         # Trim whitespace
