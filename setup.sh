@@ -314,17 +314,108 @@ prompt_and_save_keys() {
 
 # Shows a final warning if some API keys were not set.
 show_post_install_warnings() {
-    if [ ${#MISSING_KEYS_RESULT[@]} -eq 0 ]; then return; fi
+    if [ ${#MISSING_KEYS_RESULT[@]} -eq 0 ]; then 
+        echo -e "\n${GREEN}✅ All API keys are configured. Ready to use!${NC}"
+        return
+    fi
 
     echo -e "\n${YELLOW}------------------------- ATTENTION -------------------------${NC}"
     echo -e "${YELLOW}Some API keys were not provided. Some tools may have limited functionality.${NC}"
-    echo -e "Please edit the configuration file at: ${BLUE}$CONFIG_FILE_PATH_FOR_ROLLBACK${NC}"
-    echo -e "\nYou are missing the following keys:"
-    for key_info in "${MISSING_KEYS_RESULT[@]}"; do
-        local key_name="${key_info%|*}"
-        local key_url="${key_info#*|}"
-        echo -e "  - ${RED}${key_name}${NC}: Get your key from ${BLUE}${key_url}${NC}"
-    done
+    
+    # Ask user if they want to check an existing config file
+    local USER_HOME
+    USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
+    local default_config_file="$USER_HOME/.config/ipcheck/keys.conf"
+    
+    local check_existing=false
+    if [[ "$NON_INTERACTIVE" != "true" ]] && [[ -t 0 ]]; then
+        echo -e "\n${BLUE}Do you want to check an existing configuration file?${NC}"
+        echo -e "Default: ${BLUE}$default_config_file${NC}"
+        read -p "Press Enter to use default, or enter a custom path (or 'skip' to skip): " custom_check_path
+        
+        local config_to_check=""
+        if [[ -z "$custom_check_path" ]] || [[ "$custom_check_path" == "" ]]; then
+            config_to_check="$default_config_file"
+            check_existing=true
+        elif [[ "$custom_check_path" == "skip" ]] || [[ "$custom_check_path" == "Skip" ]] || [[ "$custom_check_path" == "SKIP" ]]; then
+            check_existing=false
+        else
+            # Expand ~ and resolve path
+            config_to_check=$(eval echo "$custom_check_path")
+            # If it's a directory, append keys.conf
+            if [[ -d "$config_to_check" ]]; then
+                config_to_check="$config_to_check/keys.conf"
+            fi
+            check_existing=true
+        fi
+        
+        if [[ "$check_existing" == "true" ]] && [[ -f "$config_to_check" ]]; then
+            echo -e "${BLUE}Checking configuration file: ${config_to_check}${NC}"
+            
+            # Source the config file to check for keys
+            local found_keys=0
+            local missing_keys_list=()
+            
+            # Read and parse the config file
+            if [[ -r "$config_to_check" ]]; then
+                # Check each missing key by reading from file
+                for key_info in "${MISSING_KEYS_RESULT[@]}"; do
+                    local key_name="${key_info%%|*}"
+                    # Extract key value from config file (ignore comments and empty lines)
+                    local key_line
+                    key_line=$(grep -E "^[[:space:]]*${key_name}[[:space:]]*=" "$config_to_check" 2>/dev/null | head -1)
+                    
+                    if [[ -n "$key_line" ]]; then
+                        # Extract value (remove key name, =, quotes, and whitespace)
+                        local key_value
+                        key_value=$(echo "$key_line" | sed -E "s/^[[:space:]]*${key_name}[[:space:]]*=[[:space:]]*//" | sed -E 's/^["'\''](.*)["'\'']$/\1/' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        
+                        # Check if key value is valid (not empty, not just quotes, reasonable length)
+                        if [[ -n "$key_value" ]] && [[ "$key_value" != "" ]] && [[ ${#key_value} -ge 5 ]] && [[ ${#key_value} -le 200 ]]; then
+                            ((found_keys++))
+                        else
+                            missing_keys_list+=("$key_info")
+                        fi
+                    else
+                        missing_keys_list+=("$key_info")
+                    fi
+                done
+                
+                if [[ $found_keys -eq ${#MISSING_KEYS_RESULT[@]} ]]; then
+                    echo -e "${GREEN}✅ All API keys found in configuration file!${NC}"
+                    echo -e "${GREEN}✅ Configuration is complete and ready to use!${NC}"
+                    MISSING_KEYS_RESULT=()  # Clear missing keys
+                    return
+                elif [[ $found_keys -gt 0 ]]; then
+                    echo -e "${YELLOW}Found $found_keys out of ${#MISSING_KEYS_RESULT[@]} API keys in configuration file.${NC}"
+                    MISSING_KEYS_RESULT=("${missing_keys_list[@]}")  # Update missing keys list
+                else
+                    echo -e "${YELLOW}No API keys found in configuration file.${NC}"
+                fi
+            else
+                echo -e "${RED}Error: Cannot read configuration file: ${config_to_check}${NC}"
+            fi
+        elif [[ "$check_existing" == "true" ]]; then
+            echo -e "${YELLOW}Configuration file not found: ${config_to_check}${NC}"
+        fi
+    fi
+    
+    # Show missing keys
+    if [ ${#MISSING_KEYS_RESULT[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}You are missing the following keys:${NC}"
+        for key_info in "${MISSING_KEYS_RESULT[@]}"; do
+            local key_name="${key_info%%|*}"
+            local key_desc="${key_info#*|}"
+            key_desc="${key_desc%%|*}"
+            local key_url="${key_info##*|}"
+            local key_url_clean="${key_url%% *}"  # Remove any trailing text
+            
+            echo -e "  - ${RED}${key_name}${NC} (${key_desc})"
+            echo -e "    Get your key from: ${BLUE}${key_url_clean}${NC}"
+        done
+        echo -e "\nPlease edit the configuration file at: ${BLUE}${CONFIG_FILE_PATH_FOR_ROLLBACK:-$default_config_file}${NC}"
+    fi
+    
     echo -e "${YELLOW}-------------------------------------------------------------${NC}"
 }
 
