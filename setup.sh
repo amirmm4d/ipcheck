@@ -240,15 +240,16 @@ prompt_and_save_keys() {
             local key_name="${key_info%%|*}"
             local key_desc="${key_info#*|}"
             key_desc="${key_desc%%|*}"
-            local key_url="${key_info##*|}"
-            local key_url_clean="${key_url%% *}"  # Remove any trailing text
-            local key_required="${key_info##*|}"
-            key_required="${key_required#* }"  # Get text after URL
+            local rest_info="${key_info#*|}"
+            rest_info="${rest_info#*|}"  # Remove key_desc
+            local key_url="${rest_info%%|*}"  # Get URL (before the last |)
+            local key_required="${key_info##*|}"  # Get text after last |
             
             echo "# --- $key_name ---"
             echo "# Description: $key_desc"
-            echo "# Get your API key from: $key_url_clean"
-            if [[ -n "$key_required" ]] && [[ "$key_required" != "$key_url_clean" ]]; then
+            echo "# Website: $key_url"
+            echo "# Get your API key from: $key_url"
+            if [[ -n "$key_required" ]] && [[ "$key_required" != "$key_url" ]]; then
                 echo "# Status: $key_required"
             fi
             echo "#"
