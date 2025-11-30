@@ -209,27 +209,20 @@ show_check_options_menu() {
     
     # Basic Checks section
     menu_items+=("━━━ Basic Checks / بررسی‌های پایه ━━━")
+    # Only add options that have API keys (skip those without keys)
     if [[ $has_ipqs_key -eq 1 ]]; then
         menu_items+=("q - IPQualityScore")
-    else
-        menu_items+=("q - IPQualityScore (API key required)")
     fi
     if [[ $has_abuseipdb_key -eq 1 ]]; then
         menu_items+=("a - AbuseIPDB")
-    else
-        menu_items+=("a - AbuseIPDB (API key required)")
     fi
-    menu_items+=("s - Scamalytics")
+    menu_items+=("s - Scamalytics")  # No API key required
     if [[ $has_ripe_key -eq 1 ]]; then
         menu_items+=("r - RIPE Atlas")
-    else
-        menu_items+=("r - RIPE Atlas (API key required)")
     fi
-    menu_items+=("c - Check-Host")
+    menu_items+=("c - Check-Host")  # No API key required
     if [[ $has_ht_key -eq 1 ]]; then
         menu_items+=("h - HostTracker")
-    else
-        menu_items+=("h - HostTracker (API key required)")
     fi
     
     # Advanced Features section
@@ -281,6 +274,11 @@ show_check_options_menu() {
         sleep 2
         
         selected_items=$(show_multi_menu "Select Check Options / انتخاب گزینه‌های بررسی" "${menu_items[@]}")
+        
+        # Clear the help screen after selection
+        if [[ -n "$selected_items" ]]; then
+            clear
+        fi
     fi
     
     if [[ -z "$selected_items" ]]; then
@@ -323,6 +321,7 @@ show_check_options_menu() {
     fi
     
     # Extract flags from selected items (skip section headers)
+    # Note: Items without API keys are already excluded from menu_items, so we don't need to check again
     local selected_flags=""
     while IFS= read -r line; do
         # Skip empty lines
@@ -332,13 +331,10 @@ show_check_options_menu() {
             continue
         fi
         # Extract flag (first character before space and dash)
-        # Format: "q - IPQualityScore" or "q - IPQualityScore (API key required)"
+        # Format: "q - IPQualityScore"
         if [[ "$line" =~ ^([a-zA-Z0-9])[[:space:]]*-[[:space:]]* ]]; then
             local flag="${BASH_REMATCH[1]}"
-            # Check if option is available (not disabled - doesn't contain "API key required")
-            if [[ ! "$line" =~ "API key required" ]]; then
-                selected_flags+="$flag"
-            fi
+            selected_flags+="$flag"
         fi
     done <<< "$selected_items"
     
