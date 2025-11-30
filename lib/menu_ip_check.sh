@@ -174,8 +174,9 @@ show_check_options_menu() {
     if [[ -c /dev/tty ]]; then
         stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
         if [[ -n "$stty_save" ]]; then
-            # Set raw mode with proper timeout (1/10 second)
-            stty -echo -icanon time 1 min 0 < /dev/tty 2>/dev/null || true
+            # Set raw mode - disable canonical mode to read single chars
+            # Keep echo off but allow newline to be read
+            stty -echo -icanon < /dev/tty 2>/dev/null || true
             # Set trap to restore terminal settings on exit
             trap restore_terminal EXIT INT TERM
         fi
@@ -184,7 +185,6 @@ show_check_options_menu() {
     # Function to display menu
     display_checkbox_menu() {
         clear
-        show_logo
         
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
@@ -260,13 +260,14 @@ show_check_options_menu() {
     
     # Main loop
     while true; do
-        # Read single character (stty timeout handles empty reads)
+        # Read single character
         local key=""
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+            # Read with timeout using read command
+            IFS= read -rs -t 0.1 -n1 key < /dev/tty 2>/dev/null || key=""
         else
             # Fallback: read from stdin
-            IFS= read -rs -n1 key 2>/dev/null || key=""
+            IFS= read -rs -t 0.1 -n1 key 2>/dev/null || key=""
         fi
         
         # Skip if no key was read (timeout)
@@ -323,7 +324,7 @@ show_check_options_menu() {
             fi
             # Refresh menu to show updated selection
             display_checkbox_menu
-        elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]]; then
+        elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
             # Enter - confirm
             # Build selected flags string first
             local selected_flags=""
@@ -338,17 +339,16 @@ show_check_options_menu() {
             if [[ -z "$selected_flags" ]]; then
                 # Show message briefly
                 clear
-                show_logo
                 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 echo -e "${YELLOW}⚠ Please select at least one option / لطفاً حداقل یک گزینه انتخاب کنید${NC}"
                 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 sleep 1.5 2>/dev/null || sleep 1
+                display_checkbox_menu
                 continue
             fi
             
             # Show confirmation with checkmark
             clear
-            show_logo
             echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             echo -e "${GREEN}✓${NC} ${BLUE}Selected options confirmed / گزینه‌های انتخاب شده تایید شد${NC}"
             echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
