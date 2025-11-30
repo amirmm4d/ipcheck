@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.35}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.36}"
     echo -e "${NC}"
     echo
 }
@@ -186,11 +186,23 @@ interactive_menu() {
                     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                     echo -e "${BLUE}Running: ipcheck ${cmd_args[*]}${NC}"
                     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+                    
+                    # Temporarily disable exit on error to allow process_main_args to run fully
+                    set +e
                     # Call process_main_args and capture exit code
                     process_main_args "${cmd_args[@]}"
                     local exit_code=$?
+                    set -e
+                    
                     echo
                     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    if [[ $exit_code -eq 0 ]]; then
+                        echo -e "${GREEN}✅ Command completed successfully!${NC}"
+                    else
+                        echo -e "${YELLOW}⚠️  Command completed with exit code: $exit_code${NC}"
+                    fi
+                    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo
                     echo -ne "${BLUE}Press Enter to return to main menu...${NC}"
                     if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
                         exec 3< /dev/tty
