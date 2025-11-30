@@ -206,25 +206,35 @@ show_check_options_menu() {
     
     # Read a single character from terminal
     read_char() {
-        local char
-        # Save current terminal settings
-        local old_stty
-        old_stty=$(stty -g 2>/dev/null || echo "")
-        # Set terminal to raw mode for single character input
-        if [[ -n "$old_stty" ]]; then
-            stty -echo -icanon raw 2>/dev/null || true
+        local char=""
+        local old_stty=""
+        
+        # Save terminal settings
+        if command -v stty >/dev/null 2>&1; then
+            old_stty=$(stty -g 2>/dev/null || echo "")
+            if [[ -n "$old_stty" ]]; then
+                # Set terminal to raw mode (no echo, no canonical mode)
+                # Remove time 0 min 0 to allow blocking read
+                stty -echo -icanon 2>/dev/null || true
+            fi
         fi
+        
+        # Try to read from /dev/tty directly
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
             exec 3< /dev/tty
+            # Read without timeout - will block until key is pressed
             IFS= read -rs -n1 char <&3 2>/dev/null || char=""
             exec 3<&-
         else
+            # Fallback: try stdin
             IFS= read -rs -n1 char 2>/dev/null || char=""
         fi
+        
         # Restore terminal settings
-        if [[ -n "$old_stty" ]]; then
+        if [[ -n "$old_stty" ]] && command -v stty >/dev/null 2>&1; then
             stty "$old_stty" 2>/dev/null || true
         fi
+        
         printf '%s' "$char"
     }
     
@@ -296,8 +306,9 @@ show_check_options_menu() {
         echo -e "  ${YELLOW}↑${NC}/${YELLOW}↓${NC} - Navigate  ${YELLOW}Space${NC}/${YELLOW}Enter${NC} - Toggle  ${YELLOW}a${NC} - Select all  ${YELLOW}c${NC} - Clear  ${YELLOW}d${NC} - Done"
         echo
         
-        # Read key input
-        local key
+        # Read key input - wait for user input
+        local key=""
+        # Read character - will block until user presses a key
         key=$(read_char)
         
         # Handle escape sequences for arrow keys
@@ -322,6 +333,10 @@ show_check_options_menu() {
                         fi
                         ;;
                 esac
+            elif [[ "$key2" == "" ]]; then
+                # ESC key alone - exit
+                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+                return
             fi
         elif [[ "$key" == $'\x20' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
             # Space or Enter - toggle current option
@@ -341,6 +356,10 @@ show_check_options_menu() {
         elif [[ "$key" == 'd' ]] || [[ "$key" == 'D' ]]; then
             # Done
             IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
+            return
+        elif [[ "$key" == 'q' ]] || [[ "$key" == 'Q' ]]; then
+            # Quit
+            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
             return
         fi
     done
