@@ -2,6 +2,7 @@
 #
 # setup.sh - v8: Selective and scalable installer for the tool suite.
 # Installs all or selected tools from the 'tools/' directory or root.
+# Supports IPCheck Suite v2.2.24
 
 set -eo pipefail
 
@@ -623,6 +624,26 @@ show_post_install_warnings() {
 
 do_install() {
     local tools_to_install=("$@")
+    
+    # Show welcome message with version if ipcheck is being installed
+    if [ ${#tools_to_install[@]} -eq 0 ] || [[ " ${tools_to_install[*]} " =~ " ipcheck " ]]; then
+        # Try to get version from local script first
+        local version_to_show=""
+        if [[ -f "$IPCHECK_SCRIPT" ]] && [[ -r "$IPCHECK_SCRIPT" ]]; then
+            version_to_show=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+        elif [[ -f "$BIN_DIR/ipcheck" ]] && [[ -r "$BIN_DIR/ipcheck" ]]; then
+            version_to_show=$(get_ipcheck_version "$BIN_DIR/ipcheck")
+        fi
+        
+        if [[ -n "$version_to_show" ]] && [[ "$version_to_show" != "unknown" ]]; then
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BLUE}IPCheck Suite Installation${NC}"
+            echo -e "${GREEN}Version: ${YELLOW}v${version_to_show}${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
+        fi
+    fi
+    
     if [ ${#tools_to_install[@]} -eq 0 ]; then
         echo -e "${BLUE}No specific tools requested. Preparing to install all available tools...${NC}"
         # Check for ipcheck in root
@@ -711,6 +732,23 @@ do_install() {
         exit 1
     fi
 
+    # Display version if ipcheck is being installed
+    if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]]; then
+        local version_to_show=""
+        if [[ -n "$IPCHECK_SCRIPT" ]] && [[ -f "$IPCHECK_SCRIPT" ]]; then
+            version_to_show=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+        elif [[ -f "$IPCHECK_SCRIPT" ]]; then
+            version_to_show=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+        fi
+        
+        if [[ -n "$version_to_show" ]] && [[ "$version_to_show" != "unknown" ]]; then
+            echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${GREEN}🚀 Installing IPCheck Suite v${version_to_show}${NC}"
+            echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
+        fi
+    fi
+
     echo -e "${GREEN}The following tools will be installed: ${YELLOW}${tools_to_install[*]}${NC}"
 
     trap 'installation_rollback' ERR
@@ -777,7 +815,14 @@ do_install() {
                 fi
             fi
         else
-            echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
+            # Get version before installing
+            local install_version
+            install_version=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+            if [[ -n "$install_version" ]] && [[ "$install_version" != "unknown" ]]; then
+                echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}' (v${install_version})..."
+            else
+                echo -e "  ➡️  Installing script '${YELLOW}ipcheck${NC}'..."
+            fi
             install -m 755 "$IPCHECK_SCRIPT" "$BIN_DIR/ipcheck"
             
             # Install lib directory
