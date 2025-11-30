@@ -10,7 +10,7 @@ set -eo pipefail
 # IPCheck Suite version - will be synced with ipcheck script version
 # The ipcheck script (IPCHECK_VERSION) is the source of truth
 # This variable will be updated to match ipcheck script version during installation
-IPCHECK_SUITE_VERSION="2.2.33"  # Default fallback version - will be synced from ipcheck script
+IPCHECK_SUITE_VERSION="2.2.34"  # Default fallback version - will be synced from ipcheck script
 
 # Function to sync version from ipcheck script (called during installation)
 sync_version_from_script() {
@@ -168,8 +168,6 @@ check_dependencies() {
                 echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
                 exit 1
             }
-            # Try to install optional menu tool
-            yum install -y dialog 2>/dev/null || true
         else
             echo -e "${RED}❌ No package manager found (dnf/yum). Please install manually: ${missing_deps[*]}${NC}"
             exit 1

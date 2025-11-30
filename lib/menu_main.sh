@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.33}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.34}"
     echo -e "${NC}"
     echo
 }
@@ -47,6 +47,20 @@ interactive_menu() {
         # Check if dialog is available
         local tool
         tool=$(detect_menu_tool)
+        
+        # If dialog is not available and we have root, try to install it
+        if [[ "$tool" != "dialog" ]] && [[ $EUID -eq 0 ]]; then
+            echo -e "${BLUE}⚠️  dialog is not installed. Attempting to install...${NC}"
+            if install_dialog_if_missing; then
+                echo -e "${GREEN}✅ dialog installed successfully!${NC}"
+                sleep 1
+                tool="dialog"
+            else
+                echo -e "${YELLOW}⚠️  Could not install dialog automatically.${NC}"
+                echo -e "${YELLOW}   Using fallback text menu.${NC}"
+                sleep 1
+            fi
+        fi
         
         local main_choice=""
         local use_fallback=false

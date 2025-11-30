@@ -53,3 +53,46 @@ detect_menu_tool() {
     fi
 }
 
+# Try to install dialog automatically (requires root)
+install_dialog_if_missing() {
+    # Check if dialog is already installed
+    if command -v dialog &>/dev/null; then
+        return 0
+    fi
+    
+    # Check if we have root privileges
+    if [[ $EUID -ne 0 ]]; then
+        return 1
+    fi
+    
+    # Detect OS and try to install dialog
+    local os_id=""
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        os_id="${ID:-}"
+    fi
+    
+    case "${os_id}" in
+        ubuntu|debian|mint)
+            apt-get update -qq >/dev/null 2>&1 && apt-get install -y dialog >/dev/null 2>&1
+            ;;
+        fedora|centos|rhel)
+            if command -v dnf &>/dev/null; then
+                dnf install -y dialog >/dev/null 2>&1
+            elif command -v yum &>/dev/null; then
+                yum install -y dialog >/dev/null 2>&1
+            fi
+            ;;
+        arch)
+            pacman -Syu --noconfirm dialog >/dev/null 2>&1
+            ;;
+    esac
+    
+    # Check if installation was successful
+    if command -v dialog &>/dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+

@@ -7,6 +7,20 @@ show_ip_check_menu() {
     local tool
     tool=$(detect_menu_tool)
     
+    # If dialog is not available and we have root, try to install it
+    if [[ "$tool" != "dialog" ]] && [[ $EUID -eq 0 ]]; then
+        echo -e "${BLUE}⚠️  dialog is not installed. Attempting to install...${NC}"
+        if install_dialog_if_missing; then
+            echo -e "${GREEN}✅ dialog installed successfully!${NC}"
+            sleep 1
+            tool="dialog"
+        else
+            echo -e "${YELLOW}⚠️  Could not install dialog automatically.${NC}"
+            echo -e "${YELLOW}   Using fallback text menu.${NC}"
+            sleep 1
+        fi
+    fi
+    
     local input_method=""
     
     if [[ "$tool" == "dialog" ]]; then
@@ -237,6 +251,18 @@ show_check_options_menu() {
     local tool
     tool=$(detect_menu_tool)
     
+    # If dialog is not available and we have root, try to install it
+    if [[ "$tool" != "dialog" ]] && [[ $EUID -eq 0 ]]; then
+        echo -e "${BLUE}⚠️  dialog is not installed. Attempting to install...${NC}"
+        if install_dialog_if_missing; then
+            echo -e "${GREEN}✅ dialog installed successfully!${NC}"
+            sleep 1
+            tool="dialog"
+        else
+            echo -e "${YELLOW}⚠️  Could not install dialog automatically.${NC}"
+        fi
+    fi
+    
     local selected_items=""
     
     if [[ "$tool" == "dialog" ]]; then
@@ -253,9 +279,16 @@ show_check_options_menu() {
             echo -e "${YELLOW}IPCheck requires 'dialog' for interactive menus.${NC}"
             echo -e "${YELLOW}Please install it using one of the following commands:${NC}"
             echo -e ""
-            echo -e "${GREEN}  Ubuntu/Debian:${NC} sudo apt-get install dialog"
-            echo -e "${GREEN}  Fedora/CentOS:${NC} sudo dnf install dialog"
-            echo -e "${GREEN}  Arch Linux:${NC}   sudo pacman -S dialog"
+            if [[ $EUID -eq 0 ]]; then
+                echo -e "${GREEN}  You are running as root. Try:${NC}"
+                echo -e "${GREEN}  Ubuntu/Debian:${NC} apt-get update && apt-get install -y dialog"
+                echo -e "${GREEN}  Fedora/CentOS:${NC} dnf install -y dialog"
+                echo -e "${GREEN}  Arch Linux:${NC}   pacman -Syu --noconfirm dialog"
+            else
+                echo -e "${GREEN}  Ubuntu/Debian:${NC} sudo apt-get install dialog"
+                echo -e "${GREEN}  Fedora/CentOS:${NC} sudo dnf install dialog"
+                echo -e "${GREEN}  Arch Linux:${NC}   sudo pacman -S dialog"
+            fi
             echo -e ""
             echo -e "${YELLOW}Or run the installer again:${NC} sudo ./setup.sh"
             echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
