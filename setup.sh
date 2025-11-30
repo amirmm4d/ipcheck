@@ -2,9 +2,13 @@
 #
 # setup.sh - v8: Selective and scalable installer for the tool suite.
 # Installs all or selected tools from the 'tools/' directory or root.
-# Supports IPCheck Suite v2.2.24
+# Supports IPCheck Suite v2.2.25
 
 set -eo pipefail
+
+# --- Version ---
+# IPCheck Suite version - update this when releasing new versions
+IPCHECK_SUITE_VERSION="2.2.25"
 
 # --- Configuration & Colors ---
 # Handle case when script is piped from curl (BASH_SOURCE may be unbound)
@@ -627,21 +631,27 @@ do_install() {
     
     # Show welcome message with version if ipcheck is being installed
     if [ ${#tools_to_install[@]} -eq 0 ] || [[ " ${tools_to_install[*]} " =~ " ipcheck " ]]; then
-        # Try to get version from local script first
-        local version_to_show=""
+        # Use version from setup.sh first (faster), then try to get from script
+        local version_to_show="$IPCHECK_SUITE_VERSION"
         if [[ -f "$IPCHECK_SCRIPT" ]] && [[ -r "$IPCHECK_SCRIPT" ]]; then
-            version_to_show=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+            local script_version
+            script_version=$(get_ipcheck_version "$IPCHECK_SCRIPT")
+            if [[ -n "$script_version" ]] && [[ "$script_version" != "unknown" ]]; then
+                version_to_show="$script_version"
+            fi
         elif [[ -f "$BIN_DIR/ipcheck" ]] && [[ -r "$BIN_DIR/ipcheck" ]]; then
-            version_to_show=$(get_ipcheck_version "$BIN_DIR/ipcheck")
+            local installed_version
+            installed_version=$(get_ipcheck_version "$BIN_DIR/ipcheck")
+            if [[ -n "$installed_version" ]] && [[ "$installed_version" != "unknown" ]]; then
+                version_to_show="$installed_version"
+            fi
         fi
         
-        if [[ -n "$version_to_show" ]] && [[ "$version_to_show" != "unknown" ]]; then
-            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -e "${BLUE}IPCheck Suite Installation${NC}"
-            echo -e "${GREEN}Version: ${YELLOW}v${version_to_show}${NC}"
-            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo ""
-        fi
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}IPCheck Suite Installation${NC}"
+        echo -e "${GREEN}Version: ${YELLOW}v${version_to_show}${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
     fi
     
     if [ ${#tools_to_install[@]} -eq 0 ]; then
@@ -668,8 +678,14 @@ do_install() {
                     installed_version=$(get_ipcheck_version "$BIN_DIR/ipcheck")
                     latest_version=$(get_ipcheck_version "$temp_dir/ipcheck")
                     
+                    # If latest_version is unknown, use setup.sh version as fallback
+                    if [[ -z "$latest_version" ]] || [[ "$latest_version" == "unknown" ]]; then
+                        latest_version="$IPCHECK_SUITE_VERSION"
+                    fi
+                    
                     echo -e "  ${YELLOW}Installed version: ${installed_version}${NC}"
                     echo -e "  ${YELLOW}Latest version: ${latest_version}${NC}"
+                    echo -e "  ${BLUE}Installer version: ${IPCHECK_SUITE_VERSION}${NC}"
                     
                     # Compare versions
                     if compare_versions "$latest_version" "$installed_version"; then
@@ -706,10 +722,17 @@ do_install() {
                 
                 if curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/ipcheck" -o "$temp_dir/ipcheck" 2>/dev/null; then
                     chmod +x "$temp_dir/ipcheck"
+                    local downloaded_version
+                    downloaded_version=$(get_ipcheck_version "$temp_dir/ipcheck")
                     IPCHECK_SCRIPT="$temp_dir/ipcheck"
                     DOWNLOADED_IPCHECK=true
                     tools_to_install+=("ipcheck")
-                    echo -e "${GREEN}✓ Downloaded ipcheck${NC}"
+                    if [[ -n "$downloaded_version" ]] && [[ "$downloaded_version" != "unknown" ]]; then
+                        echo -e "${GREEN}✓ Downloaded ipcheck (v${downloaded_version})${NC}"
+                    else
+                        echo -e "${GREEN}✓ Downloaded ipcheck${NC}"
+                        echo -e "${BLUE}  (Installer version: ${IPCHECK_SUITE_VERSION})${NC}"
+                    fi
                 else
                     echo -e "${RED}Error: Failed to download ipcheck from GitHub.${NC}" >&2
                     echo -e "${YELLOW}Please make sure you have internet connection and the repository is accessible.${NC}" >&2
@@ -750,6 +773,9 @@ do_install() {
     fi
 
     echo -e "${GREEN}The following tools will be installed: ${YELLOW}${tools_to_install[*]}${NC}"
+    if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]]; then
+        echo -e "${BLUE}Installer version: ${IPCHECK_SUITE_VERSION}${NC}"
+    fi
 
     trap 'installation_rollback' ERR
     check_dependencies
@@ -912,6 +938,18 @@ do_install() {
     trap - ERR
 
     echo -e "\n${GREEN}🎉 Installation Complete! 🎉${NC}"
+    
+    # Show installed version if ipcheck was installed
+    if [[ " ${tools_to_install[*]} " =~ " ipcheck " ]]; then
+        local final_version
+        if [[ -f "$BIN_DIR/ipcheck" ]] && [[ -r "$BIN_DIR/ipcheck" ]]; then
+            final_version=$(get_ipcheck_version "$BIN_DIR/ipcheck")
+            if [[ -n "$final_version" ]] && [[ "$final_version" != "unknown" ]]; then
+                echo -e "${GREEN}Installed IPCheck Suite version: ${YELLOW}v${final_version}${NC}"
+            fi
+        fi
+    fi
+    
     show_post_install_warnings
     
     # Show GitHub link and star request
