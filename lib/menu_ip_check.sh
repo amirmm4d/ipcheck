@@ -162,37 +162,72 @@ show_check_options_menu() {
     local current_index=0
     local total_options=${#options[@]}
     
+    # Store terminal settings for cleanup
+    local saved_stty=""
+    local terminal_configured=false
+    
+    # Check if we have an interactive terminal
+    if [[ ! -t 0 ]] && [[ ! -c /dev/tty ]]; then
+        # Non-interactive - use simple menu
+        echo -e "${YELLOW}⚠️  Non-interactive terminal detected. Using simple selection menu.${NC}"
+        echo
+        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+        echo -e "${YELLOW}Enter flags to select (e.g., qagdt) or press Enter to skip:${NC}"
+        echo -ne "${BLUE}Flags: ${NC}"
+        local simple_flags=""
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -r simple_flags <&3
+            exec 3<&-
+        else
+            IFS= read -r simple_flags || simple_flags=""
+        fi
+        simple_flags=$(printf '%s' "$simple_flags" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        IPCHECK_MENU_RESULT="FLAGS:$simple_flags"
+        return
+    fi
+    
+    # Setup terminal for interactive mode
+    if command -v stty >/dev/null 2>&1; then
+        saved_stty=$(stty -g 2>/dev/null || echo "")
+        if [[ -n "$saved_stty" ]]; then
+            # Configure terminal for character reading
+            stty -echo -icanon min 1 time 0 2>/dev/null || {
+                saved_stty=""
+            }
+            if [[ -n "$saved_stty" ]]; then
+                terminal_configured=true
+            fi
+        fi
+    fi
+    
+    # Cleanup function to restore terminal
+    cleanup_terminal() {
+        if [[ "$terminal_configured" == "true" ]] && [[ -n "$saved_stty" ]] && command -v stty >/dev/null 2>&1; then
+            stty "$saved_stty" 2>/dev/null || true
+            terminal_configured=false
+        fi
+        # Ensure echo is always restored
+        stty echo 2>/dev/null || true
+    }
+    
+    # Set trap to cleanup on exit
+    # Use a simple trap that always restores terminal
+    trap 'cleanup_terminal' EXIT INT TERM HUP
+    
     # Read a single character from terminal
     read_char() {
         local char=""
-        local old_stty=""
         
-        # Save terminal settings
-        if command -v stty >/dev/null 2>&1; then
-            old_stty=$(stty -g 2>/dev/null || echo "")
-            if [[ -n "$old_stty" ]]; then
-                # Set terminal to raw mode (no echo, no canonical mode)
-                # Remove time 0 min 0 to allow blocking read
-                stty -echo -icanon 2>/dev/null || true
-            fi
-        fi
-        
-        # Try to read from /dev/tty directly
+        # Read from /dev/tty if available, otherwise stdin
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            exec 3< /dev/tty
-            # Read without timeout - will block until key is pressed
-            IFS= read -rs -n1 char <&3 2>/dev/null || char=""
-            exec 3<&-
+            IFS= read -rs -n1 char < /dev/tty 2>/dev/null || char=""
         else
-            # Fallback: try stdin
             IFS= read -rs -n1 char 2>/dev/null || char=""
         fi
         
-        # Restore terminal settings
-        if [[ -n "$old_stty" ]] && command -v stty >/dev/null 2>&1; then
-            stty "$old_stty" 2>/dev/null || true
-        fi
-        
+        # Return character or empty on error
         printf '%s' "$char"
     }
     
@@ -261,38 +296,62 @@ show_check_options_menu() {
         fi
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
         echo -e "${BLUE}Instructions:${NC}"
-        echo -e "  ${YELLOW}↑${NC}/${YELLOW}↓${NC} - Navigate  ${YELLOW}Space${NC}/${YELLOW}Enter${NC} - Toggle  ${YELLOW}a${NC} - Select all  ${YELLOW}c${NC} - Clear  ${YELLOW}d${NC} - Done"
+        echo -e "  ${YELLOW}↑${NC}/${YELLOW}↓${NC} - Navigate  ${YELLOW}Space${NC}/${YELLOW}Enter${NC} - Toggle  ${YELLOW}a${NC} - Select all  ${YELLOW}c${NC} - Clear  ${YELLOW}d${NC} - Done  ${YELLOW}q${NC}/${YELLOW}Esc${NC} - Cancel"
         echo
         
         # Read key input - wait for user input
         local key=""
-        # Read character - will block until user presses a key
-        key=$(read_char)
+        key=$(read_char 2>/dev/null || echo "")
+        
+        # If no key read or empty, try again (might be a timing issue)
+        if [[ -z "$key" ]]; then
+            sleep 0.1
+            key=$(read_char 2>/dev/null || echo "")
+        fi
+        
+        # If still no key, cancel and exit gracefully
+        if [[ -z "$key" ]]; then
+            cleanup_terminal
+            trap - EXIT INT TERM HUP 2>/dev/null || true
+            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+            return
+        fi
         
         # Handle escape sequences for arrow keys
         if [[ "$key" == $'\x1b' ]]; then
-            local key2 key3
-            key2=$(read_char)
-            if [[ "$key2" == '[' ]]; then
-                key3=$(read_char)
-                case "$key3" in
-                    'A') # Up arrow
-                        if [[ $current_index -gt 0 ]]; then
-                            ((current_index--))
-                        else
-                            current_index=$((total_options - 1))
-                        fi
-                        ;;
-                    'B') # Down arrow
-                        if [[ $current_index -lt $((total_options - 1)) ]]; then
-                            ((current_index++))
-                        else
-                            current_index=0
-                        fi
-                        ;;
-                esac
-            elif [[ "$key2" == "" ]]; then
+            local key2=""
+            if key2=$(read_char 2>/dev/null); then
+                if [[ "$key2" == '[' ]]; then
+                    local key3=""
+                    if key3=$(read_char 2>/dev/null); then
+                        case "$key3" in
+                            'A') # Up arrow
+                                if [[ $current_index -gt 0 ]]; then
+                                    ((current_index--))
+                                else
+                                    current_index=$((total_options - 1))
+                                fi
+                                ;;
+                            'B') # Down arrow
+                                if [[ $current_index -lt $((total_options - 1)) ]]; then
+                                    ((current_index++))
+                                else
+                                    current_index=0
+                                fi
+                                ;;
+                        esac
+                    fi
+                elif [[ -z "$key2" ]]; then
+                    # ESC key alone - exit
+                    cleanup_terminal
+                    trap - EXIT INT TERM HUP 2>/dev/null || true
+                    IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+                    return
+                fi
+            else
                 # ESC key alone - exit
+                cleanup_terminal
+                trap - EXIT INT TERM HUP 2>/dev/null || true
                 IPCHECK_MENU_RESULT="FLAGS:CANCEL"
                 return
             fi
@@ -313,12 +372,21 @@ show_check_options_menu() {
             selected_flags=""
         elif [[ "$key" == 'd' ]] || [[ "$key" == 'D' ]]; then
             # Done
+            cleanup_terminal
+            trap - EXIT INT TERM HUP 2>/dev/null || true
             IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
             return
         elif [[ "$key" == 'q' ]] || [[ "$key" == 'Q' ]]; then
             # Quit
+            cleanup_terminal
+            trap - EXIT INT TERM HUP 2>/dev/null || true
             IPCHECK_MENU_RESULT="FLAGS:CANCEL"
             return
         fi
     done
+    
+    # Cleanup if loop exits unexpectedly
+    cleanup_terminal
+    trap - EXIT INT TERM HUP 2>/dev/null || true
+    IPCHECK_MENU_RESULT="FLAGS:CANCEL"
 }
