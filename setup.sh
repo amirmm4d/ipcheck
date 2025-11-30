@@ -10,7 +10,7 @@ set -eo pipefail
 # IPCheck Suite version - will be synced with ipcheck script version
 # The ipcheck script (IPCHECK_VERSION) is the source of truth
 # This variable will be updated to match ipcheck script version during installation
-IPCHECK_SUITE_VERSION="2.2.30"  # Default fallback version - will be synced from ipcheck script
+IPCHECK_SUITE_VERSION="2.2.31"  # Default fallback version - will be synced from ipcheck script
 
 # Function to sync version from ipcheck script (called during installation)
 sync_version_from_script() {

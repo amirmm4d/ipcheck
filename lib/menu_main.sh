@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.30}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.31}"
     echo -e "${NC}"
     echo
 }
@@ -49,6 +49,7 @@ interactive_menu() {
         tool=$(detect_menu_tool)
         
         local main_choice=""
+        local use_fallback=false
         
         if [[ "$tool" != "none" ]]; then
             # Use menu tool
@@ -67,12 +68,17 @@ interactive_menu() {
                 # Extract choice number (first character)
                 main_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
             else
-                # User cancelled or menu failed, exit
-                echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
-                exit 0
+                # Menu tool failed or returned empty - fall back to text menu
+                # Don't exit, use fallback instead
+                use_fallback=true
             fi
         else
-            # Fallback to old menu if no tool available
+            # No menu tool available, use fallback
+            use_fallback=true
+        fi
+        
+        # Use fallback text menu if needed
+        if [[ "$use_fallback" == "true" ]]; then
             show_main_menu
             echo -ne "${BLUE}👉 Select an option (1-4): ${NC}"
             if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then

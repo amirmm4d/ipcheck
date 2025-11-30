@@ -7,19 +7,36 @@ show_menu_fzf() {
     shift
     local menu_items=("$@")
     
-    # Ensure we're reading from terminal
-    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+    # Check if we have a terminal (try multiple methods for sudo compatibility)
+    local has_terminal=false
+    if [[ -t 1 ]] && [[ -t 0 ]]; then
+        has_terminal=true
+    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        # Even if stdin/stdout aren't terminals, /dev/tty might be available
+        has_terminal=true
+    fi
+    
+    if [[ "$has_terminal" == "false" ]]; then
         # Not a terminal, can't use fzf
         echo ""
         return
     fi
     
     local selected
-    selected=$(printf '%s\n' "${menu_items[@]}" | \
-        fzf --height=10 --reverse --border \
-        --header="$title" \
-        --prompt="👉 Select > " \
-        --pointer="▶" < /dev/tty 2>/dev/null || echo "")
+    # Try to use fzf, redirect both stdin and stderr properly
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        selected=$(printf '%s\n' "${menu_items[@]}" | \
+            fzf --height=10 --reverse --border \
+            --header="$title" \
+            --prompt="👉 Select > " \
+            --pointer="▶" < /dev/tty 2>/dev/tty || echo "")
+    else
+        selected=$(printf '%s\n' "${menu_items[@]}" | \
+            fzf --height=10 --reverse --border \
+            --header="$title" \
+            --prompt="👉 Select > " \
+            --pointer="▶" 2>/dev/null || echo "")
+    fi
     
     echo "$selected"
 }
@@ -30,8 +47,16 @@ show_menu_dialog() {
     shift
     local menu_items=("$@")
     
-    # Ensure we're reading from terminal
-    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+    # Check if we have a terminal (try multiple methods for sudo compatibility)
+    local has_terminal=false
+    if [[ -t 1 ]] && [[ -t 0 ]]; then
+        has_terminal=true
+    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        # Even if stdin/stdout aren't terminals, /dev/tty might be available
+        has_terminal=true
+    fi
+    
+    if [[ "$has_terminal" == "false" ]]; then
         # Not a terminal, can't use dialog
         echo ""
         return
@@ -46,11 +71,20 @@ show_menu_dialog() {
     done
     
     local choice
-    choice=$(dialog --clear --stdout \
-        --title "$title" \
-        --menu "Select an option:" \
-        15 70 10 \
-        "${dialog_items[@]}" < /dev/tty 2>/dev/null || echo "")
+    # Use /dev/tty if available for better sudo compatibility
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        choice=$(dialog --clear --stdout \
+            --title "$title" \
+            --menu "Select an option:" \
+            15 70 10 \
+            "${dialog_items[@]}" < /dev/tty 2>/dev/tty || echo "")
+    else
+        choice=$(dialog --clear --stdout \
+            --title "$title" \
+            --menu "Select an option:" \
+            15 70 10 \
+            "${dialog_items[@]}" 2>/dev/null || echo "")
+    fi
     
     if [[ -n "$choice" ]] && [[ "$choice" =~ ^[0-9]+$ ]]; then
         # Return the selected item text
@@ -67,8 +101,16 @@ show_menu_whiptail() {
     shift
     local menu_items=("$@")
     
-    # Ensure we're reading from terminal
-    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+    # Check if we have a terminal (try multiple methods for sudo compatibility)
+    local has_terminal=false
+    if [[ -t 1 ]] && [[ -t 0 ]]; then
+        has_terminal=true
+    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        # Even if stdin/stdout aren't terminals, /dev/tty might be available
+        has_terminal=true
+    fi
+    
+    if [[ "$has_terminal" == "false" ]]; then
         # Not a terminal, can't use whiptail
         echo ""
         return
@@ -83,11 +125,20 @@ show_menu_whiptail() {
     done
     
     local choice
-    choice=$(whiptail --clear --stdout \
-        --title "$title" \
-        --menu "Select an option:" \
-        15 70 10 \
-        "${whiptail_items[@]}" < /dev/tty 2>/dev/null || echo "")
+    # Use /dev/tty if available for better sudo compatibility
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        choice=$(whiptail --clear --stdout \
+            --title "$title" \
+            --menu "Select an option:" \
+            15 70 10 \
+            "${whiptail_items[@]}" < /dev/tty 2>/dev/tty || echo "")
+    else
+        choice=$(whiptail --clear --stdout \
+            --title "$title" \
+            --menu "Select an option:" \
+            15 70 10 \
+            "${whiptail_items[@]}" 2>/dev/null || echo "")
+    fi
     
     if [[ -n "$choice" ]] && [[ "$choice" =~ ^[0-9]+$ ]]; then
         # Return the selected item text
