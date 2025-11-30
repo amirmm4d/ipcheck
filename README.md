@@ -1,4 +1,4 @@
-# IPCheck Suite v2.2.5
+# IPCheck Suite v2.2.6
 **بررسی اعتبار IP + تحلیل پیشرفته شبکه + نصب تعاملی VPN**
 
 ---

@@ -162,9 +162,9 @@ show_check_options_menu() {
     local current_index=0
     local total_options=${#options[@]}
     
-    # Store terminal settings for cleanup
-    local saved_stty=""
-    local terminal_configured=false
+    # Store terminal settings for cleanup (use global variables for trap access)
+    declare -g _MENU_STTY_SAVED=""
+    declare -g _MENU_TERMINAL_CONFIGURED="false"
     
     # Check if we have an interactive terminal
     if [[ ! -t 0 ]] && [[ ! -c /dev/tty ]]; then
@@ -190,31 +190,28 @@ show_check_options_menu() {
     
     # Setup terminal for interactive mode
     if command -v stty >/dev/null 2>&1; then
-        saved_stty=$(stty -g 2>/dev/null || echo "")
-        if [[ -n "$saved_stty" ]]; then
+        _MENU_STTY_SAVED=$(stty -g 2>/dev/null || echo "")
+        if [[ -n "$_MENU_STTY_SAVED" ]]; then
             # Configure terminal for character reading
-            stty -echo -icanon min 1 time 0 2>/dev/null || {
-                saved_stty=""
-            }
-            if [[ -n "$saved_stty" ]]; then
-                terminal_configured=true
+            if stty -echo -icanon min 1 time 0 2>/dev/null; then
+                _MENU_TERMINAL_CONFIGURED="true"
+            else
+                _MENU_STTY_SAVED=""
             fi
         fi
     fi
     
-    # Cleanup function to restore terminal
-    cleanup_terminal() {
-        if [[ "$terminal_configured" == "true" ]] && [[ -n "$saved_stty" ]] && command -v stty >/dev/null 2>&1; then
-            stty "$saved_stty" 2>/dev/null || true
-            terminal_configured=false
+    # Cleanup function (can access global variables)
+    _menu_cleanup_terminal() {
+        if [[ "${_MENU_TERMINAL_CONFIGURED:-false}" == "true" ]] && [[ -n "${_MENU_STTY_SAVED:-}" ]] && command -v stty >/dev/null 2>&1; then
+            stty "${_MENU_STTY_SAVED}" 2>/dev/null || true
         fi
         # Ensure echo is always restored
         stty echo 2>/dev/null || true
     }
     
     # Set trap to cleanup on exit
-    # Use a simple trap that always restores terminal
-    trap 'cleanup_terminal' EXIT INT TERM HUP
+    trap '_menu_cleanup_terminal' EXIT INT TERM HUP
     
     # Read a single character from terminal
     read_char() {
@@ -311,7 +308,8 @@ show_check_options_menu() {
         
         # If still no key, cancel and exit gracefully
         if [[ -z "$key" ]]; then
-            cleanup_terminal
+            # Restore terminal before exit
+            _menu_cleanup_terminal
             trap - EXIT INT TERM HUP 2>/dev/null || true
             IPCHECK_MENU_RESULT="FLAGS:CANCEL"
             return
@@ -343,14 +341,17 @@ show_check_options_menu() {
                     fi
                 elif [[ -z "$key2" ]]; then
                     # ESC key alone - exit
-                    cleanup_terminal
+                    _menu_cleanup_terminal
                     trap - EXIT INT TERM HUP 2>/dev/null || true
                     IPCHECK_MENU_RESULT="FLAGS:CANCEL"
                     return
                 fi
             else
                 # ESC key alone - exit
-                cleanup_terminal
+                if [[ "${_menu_terminal_configured:-false}" == "true" ]] && [[ -n "${_menu_stty_saved:-}" ]] && command -v stty >/dev/null 2>&1; then
+                    stty "$_menu_stty_saved" 2>/dev/null || true
+                fi
+                stty echo 2>/dev/null || true
                 trap - EXIT INT TERM HUP 2>/dev/null || true
                 IPCHECK_MENU_RESULT="FLAGS:CANCEL"
                 return
@@ -372,13 +373,13 @@ show_check_options_menu() {
             selected_flags=""
         elif [[ "$key" == 'd' ]] || [[ "$key" == 'D' ]]; then
             # Done
-            cleanup_terminal
+            _menu_cleanup_terminal
             trap - EXIT INT TERM HUP 2>/dev/null || true
             IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
             return
         elif [[ "$key" == 'q' ]] || [[ "$key" == 'Q' ]]; then
             # Quit
-            cleanup_terminal
+            _menu_cleanup_terminal
             trap - EXIT INT TERM HUP 2>/dev/null || true
             IPCHECK_MENU_RESULT="FLAGS:CANCEL"
             return
@@ -386,7 +387,7 @@ show_check_options_menu() {
     done
     
     # Cleanup if loop exits unexpectedly
-    cleanup_terminal
+    _menu_cleanup_terminal
     trap - EXIT INT TERM HUP 2>/dev/null || true
     IPCHECK_MENU_RESULT="FLAGS:CANCEL"
 }
