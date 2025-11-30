@@ -238,6 +238,12 @@ uninstall_ipcheck() {
         echo -e "${GREEN}✓ Removed /usr/local/bin/ipcheck${NC}"
     fi
     
+    # Remove library directory
+    if [[ -d "/usr/local/lib/ipcheck" ]]; then
+        rm -rf "/usr/local/lib/ipcheck"
+        echo -e "${GREEN}✓ Removed library directory /usr/local/lib/ipcheck${NC}"
+    fi
+    
     # Remove man page
     if [[ -f "/usr/share/man/man1/ipcheck.1.gz" ]]; then
         rm -f "/usr/share/man/man1/ipcheck.1.gz"
@@ -261,32 +267,6 @@ parse_combined_flags() {
     done
     
     echo "${parsed_flags[@]}"
-}
-
-uninstall_ipcheck() {
-    if [[ $EUID -ne 0 ]]; then
-        echo -e "${RED}Error: Uninstall requires root privileges. Please run with sudo.${NC}" >&2
-        exit 1
-    fi
-    
-    echo -e "${YELLOW}Uninstalling ipcheck...${NC}"
-    
-    # Remove binary
-    if [[ -f "/usr/local/bin/ipcheck" ]]; then
-        rm -f "/usr/local/bin/ipcheck"
-        echo -e "${GREEN}✓ Removed /usr/local/bin/ipcheck${NC}"
-    fi
-    
-    # Remove man page
-    if [[ -f "/usr/share/man/man1/ipcheck.1.gz" ]]; then
-        rm -f "/usr/share/man/man1/ipcheck.1.gz"
-        mandb -q 2>/dev/null || true
-        echo -e "${GREEN}✓ Removed man page${NC}"
-    fi
-    
-    echo -e "${GREEN}✅ Uninstallation complete.${NC}"
-    echo -e "${YELLOW}Note: Configuration file (~/.config/ipcheck/keys.conf) was not removed to preserve your API keys.${NC}"
-    exit 0
 }
 
 main() {
