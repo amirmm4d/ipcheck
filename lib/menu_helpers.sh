@@ -110,13 +110,13 @@ show_multi_menu() {
     if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
         choices=$(dialog --clear --stdout \
             --title "$title" \
-            --checklist "📌 Instructions / راهنما:\n   • Use ↑↓ arrows to navigate / از فلش‌ها استفاده کنید\n   • Press SPACE to select/deselect / Space برای انتخاب\n   • Press TAB to move between buttons / Tab برای جابجایی\n   • Press ENTER to confirm / Enter برای تأیید\n\nSelect options / انتخاب گزینه‌ها:" \
+            --checklist "📌 Instructions / راهنما:\n   • Use ↑↓ arrows to navigate / از فلش‌ها استفاده کنید\n   • Press SPACE to select/deselect / Space برای انتخاب\n   • Press TAB to move between buttons / Tab برای جابجایی\n   • Press ENTER to confirm / Enter برای تأیید\n   • Select 'all' to select everything / 'all' را برای انتخاب همه بزنید\n\nSelect options / انتخاب گزینه‌ها:" \
             25 75 15 \
             "${dialog_items[@]}" < /dev/tty 2>/dev/tty || echo "")
     else
         choices=$(dialog --clear --stdout \
             --title "$title" \
-            --checklist "📌 Instructions / راهنما:\n   • Use ↑↓ arrows to navigate / از فلش‌ها استفاده کنید\n   • Press SPACE to select/deselect / Space برای انتخاب\n   • Press TAB to move between buttons / Tab برای جابجایی\n   • Press ENTER to confirm / Enter برای تأیید\n\nSelect options / انتخاب گزینه‌ها:" \
+            --checklist "📌 Instructions / راهنما:\n   • Use ↑↓ arrows to navigate / از فلش‌ها استفاده کنید\n   • Press SPACE to select/deselect / Space برای انتخاب\n   • Press TAB to move between buttons / Tab برای جابجایی\n   • Press ENTER to confirm / Enter برای تأیید\n   • Select 'all' to select everything / 'all' را برای انتخاب همه بزنید\n\nSelect options / انتخاب گزینه‌ها:" \
             25 75 15 \
             "${dialog_items[@]}" 2>/dev/null || echo "")
     fi

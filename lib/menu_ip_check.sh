@@ -237,6 +237,7 @@ show_check_options_menu() {
     
     # Output Options section
     menu_items+=("━━━ Output Options / گزینه‌های خروجی ━━━")
+    menu_items+=("all - Select All / انتخاب همه")
     menu_items+=("j - JSON Output")
     menu_items+=("l - Enable Logging")
     
@@ -329,6 +330,9 @@ show_check_options_menu() {
     # Extract flags from selected items (skip section headers)
     # Note: Items without API keys are already excluded from menu_items, so we don't need to check again
     local selected_flags=""
+    local has_all=false
+    local has_logging=false
+    
     while IFS= read -r line; do
         # Skip empty lines
         [[ -z "$line" ]] && continue
@@ -336,18 +340,110 @@ show_check_options_menu() {
         if [[ "$line" =~ ^━━━ ]]; then
             continue
         fi
+        # Check for "all" option
+        if [[ "$line" =~ "Select All" ]] || [[ "$line" =~ "انتخاب همه" ]]; then
+            has_all=true
+            continue
+        fi
+        # Check for logging option
+        if [[ "$line" =~ ^l[[:space:]]*-[[:space:]]*Enable[[:space:]]*Logging ]]; then
+            has_logging=true
+            continue
+        fi
         # Extract flag (first character before space and dash)
         # Format: "q - IPQualityScore"
         if [[ "$line" =~ ^([a-zA-Z0-9])[[:space:]]*-[[:space:]]* ]]; then
             local flag="${BASH_REMATCH[1]}"
-            selected_flags+="$flag"
+            # Skip "all" option (handled separately) and "l" flag (handled separately)
+            if [[ "$flag" == "a" ]] && [[ "$line" =~ "Select All" ]]; then
+                # This is "all" option, skip it (already handled)
+                continue
+            elif [[ "$flag" == "l" ]] && [[ "$line" =~ "Enable Logging" ]]; then
+                # This is logging option, skip it (already handled)
+                continue
+            else
+                selected_flags+="$flag"
+            fi
         fi
     done <<< "$selected_items"
+    
+    # If "all" was selected, add all available flags (replace any existing selections)
+    if [[ "$has_all" == "true" ]]; then
+        selected_flags=""
+        # Add all basic check flags (only if they have API keys)
+        [[ $has_ipqs_key -eq 1 ]] && selected_flags+="q"
+        [[ $has_abuseipdb_key -eq 1 ]] && selected_flags+="a"
+        selected_flags+="s"  # Scamalytics (no key required)
+        [[ $has_ripe_key -eq 1 ]] && selected_flags+="r"
+        selected_flags+="c"  # Check-Host (no key required)
+        [[ $has_ht_key -eq 1 ]] && selected_flags+="h"
+        # Add all advanced features
+        selected_flags+="g"  # IP Quality Score
+        selected_flags+="d"  # CDN Detection
+        selected_flags+="t"  # Routing Health
+        selected_flags+="p"  # Port Scan
+        selected_flags+="R"  # Reality Test
+        selected_flags+="u"  # Usage History
+        selected_flags+="n"  # Suggestions
+        # Add JSON output
+        selected_flags+="j"
+    fi
     
     if [[ -z "$selected_flags" ]]; then
         IPCHECK_MENU_RESULT="FLAGS:CANCEL"
         return
     fi
     
-    IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
+    # If logging was selected, show log format menu
+    if [[ "$has_logging" == "true" ]]; then
+        local log_format=""
+        local tool
+        tool=$(detect_menu_tool)
+        
+        if [[ "$tool" == "dialog" ]]; then
+            local format_options=(
+                "txt - Text Format / فرمت متنی"
+                "json - JSON Format / فرمت JSON"
+            )
+            
+            local selected_format
+            selected_format=$(show_menu "📝 Select Log Format / انتخاب فرمت لاگ" "${format_options[@]}")
+            
+            if [[ -n "$selected_format" ]]; then
+                if [[ "$selected_format" =~ "txt" ]] || [[ "$selected_format" =~ "متنی" ]]; then
+                    log_format="txt"
+                elif [[ "$selected_format" =~ "json" ]] || [[ "$selected_format" =~ "JSON" ]]; then
+                    log_format="json"
+                fi
+            else
+                # User cancelled log format selection, remove logging
+                has_logging=false
+            fi
+        else
+            # Fallback: ask for format
+            echo -e "${BLUE}Select log format (txt/json) [default: txt]: ${NC}"
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                exec 3< /dev/tty
+                IFS= read -r log_format <&3
+                exec 3<&-
+            else
+                IFS= read -r log_format
+            fi
+            log_format=$(printf '%s' "$log_format" | tr -d '\n\r' | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ -z "$log_format" ]] || [[ "$log_format" != "json" ]]; then
+                log_format="txt"
+            fi
+        fi
+        
+        if [[ "$has_logging" == "true" ]] && [[ -n "$log_format" ]]; then
+            # Store log format in result (add 'l' flag back)
+            IPCHECK_MENU_RESULT="FLAGS:${selected_flags}l|LOG_FORMAT:$log_format"
+        else
+            # Logging was cancelled, don't add it
+            IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
+        fi
+    else
+        # No logging selected
+        IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
+    fi
 }

@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.38}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.39}"
     echo -e "${NC}"
     echo
 }
@@ -160,6 +160,13 @@ interactive_menu() {
                     local flags="${check_result#FLAGS:}"
                     local input="${input_result#INPUT:}"
                     
+                    # Check if log format is specified (format: FLAGS:abc|LOG_FORMAT:txt)
+                    local log_format=""
+                    if [[ "$flags" =~ \|LOG_FORMAT: ]]; then
+                        log_format="${flags##*|LOG_FORMAT:}"
+                        flags="${flags%%|LOG_FORMAT:*}"
+                    fi
+                    
                     # Build command
                     local cmd_args=()
                     
@@ -172,14 +179,34 @@ interactive_menu() {
                     fi
                     
                     # Add flags
-                    if [[ "$flags" != "all" ]] && [[ -n "$flags" ]]; then
-                        # Add individual flags or combined
-                        if [[ ${#flags} -gt 1 ]]; then
-                            # Combined flags like "gdt"
-                            cmd_args+=("-$flags")
-                        else
-                            # Single flag
-                            cmd_args+=("-$flags")
+                    if [[ -n "$flags" ]]; then
+                        # Check if logging is enabled (flag 'l' in flags)
+                        if [[ "$flags" =~ l ]]; then
+                            # Remove 'l' from flags (we'll add -l and -L separately)
+                            flags=$(echo "$flags" | tr -d 'l')
+                            
+                            # Add logging directory (use default)
+                            local log_dir="${HOME}/.ipcheck/logs"
+                            cmd_args+=("-l" "$log_dir")
+                            
+                            # Add log format (from menu selection or default)
+                            if [[ -n "$log_format" ]]; then
+                                cmd_args+=("-L" "$log_format")
+                            else
+                                cmd_args+=("-L" "txt")  # Default
+                            fi
+                        fi
+                        
+                        # Add other flags if any remain
+                        if [[ -n "$flags" ]]; then
+                            # Add individual flags or combined
+                            if [[ ${#flags} -gt 1 ]]; then
+                                # Combined flags like "gdt"
+                                cmd_args+=("-$flags")
+                            else
+                                # Single flag
+                                cmd_args+=("-$flags")
+                            fi
                         fi
                     fi
                     
