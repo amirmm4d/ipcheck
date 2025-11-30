@@ -174,7 +174,8 @@ show_check_options_menu() {
     if [[ -c /dev/tty ]]; then
         stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
         if [[ -n "$stty_save" ]]; then
-            stty -echo -icanon time 0 min 0 < /dev/tty 2>/dev/null || true
+            # Set raw mode with proper timeout (1/10 second)
+            stty -echo -icanon time 1 min 0 < /dev/tty 2>/dev/null || true
             # Set trap to restore terminal settings on exit
             trap restore_terminal EXIT INT TERM
         fi
@@ -254,17 +255,23 @@ show_check_options_menu() {
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     }
     
+    # Display menu once before loop
+    display_checkbox_menu
+    
     # Main loop
     while true; do
-        display_checkbox_menu
-        
-        # Read single character
+        # Read single character (stty timeout handles empty reads)
         local key=""
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
             key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
         else
             # Fallback: read from stdin
-            IFS= read -rs -n1 key || key=""
+            IFS= read -rs -n1 key 2>/dev/null || key=""
+        fi
+        
+        # Skip if no key was read (timeout)
+        if [[ -z "$key" ]]; then
+            continue
         fi
         
         # Handle escape sequences (arrow keys)
@@ -291,11 +298,13 @@ show_check_options_menu() {
                         if [[ $current_index -gt 0 ]]; then
                             ((current_index--))
                         fi
+                        display_checkbox_menu
                         ;;
                     "B") # Down arrow
                         if [[ $current_index -lt $((total_options - 1)) ]]; then
                             ((current_index++))
                         fi
+                        display_checkbox_menu
                         ;;
                 esac
             elif [[ -z "$key2" ]]; then
@@ -312,6 +321,8 @@ show_check_options_menu() {
             else
                 selected[$current_index]=0
             fi
+            # Refresh menu to show updated selection
+            display_checkbox_menu
         elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]]; then
             # Enter - confirm
             # Build selected flags string first
