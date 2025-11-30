@@ -2,13 +2,13 @@
 #
 # setup.sh - v8: Selective and scalable installer for the tool suite.
 # Installs all or selected tools from the 'tools/' directory or root.
-# Supports IPCheck Suite v2.2.27
+# Supports IPCheck Suite v2.2.28
 
 set -eo pipefail
 
 # --- Version ---
 # IPCheck Suite version - update this when releasing new versions
-IPCHECK_SUITE_VERSION="2.2.27"
+IPCHECK_SUITE_VERSION="2.2.28"
 
 # --- Configuration & Colors ---
 # Handle case when script is piped from curl (BASH_SOURCE may be unbound)
@@ -77,7 +77,9 @@ installation_rollback() {
 check_dependencies() {
     echo -e "${BLUE}--- STEP 1: Checking Dependencies ---${NC}"
     local missing_deps=()
-    local required_cmds=("curl" "jq" "fzf")
+    local required_cmds=("curl" "jq")
+    # Optional but recommended for better menu experience
+    local optional_cmds=("fzf" "dialog" "whiptail")
 
     for cmd in "${required_cmds[@]}"; do
         if ! command -v "$cmd" &>/dev/null; then
@@ -87,6 +89,20 @@ check_dependencies() {
             echo -e "   ${GREEN}✅  Found '$cmd'.${NC}"
         fi
     done
+    
+    # Check optional menu tools
+    local found_menu_tool=false
+    for cmd in "${optional_cmds[@]}"; do
+        if command -v "$cmd" &>/dev/null; then
+            echo -e "   ${GREEN}✅  Found optional menu tool '$cmd'.${NC}"
+            found_menu_tool=true
+        fi
+    done
+    
+    if [[ "$found_menu_tool" == "false" ]]; then
+        echo -e "   ${YELLOW}⚠️  No interactive menu tool found (fzf/dialog/whiptail).${NC}"
+        echo -e "   ${YELLOW}   Menus will use basic text input.${NC}"
+    fi
 
     if [ ${#missing_deps[@]} -eq 0 ]; then
         echo -e "${GREEN}✅ All dependencies are satisfied.${NC}"
@@ -131,51 +147,16 @@ check_dependencies() {
     case "${os_id}" in
     ubuntu | debian | mint)
         echo -e "${BLUE}Installing ${missing_deps[*]} using apt-get...${NC}"
-        # For fzf, try to install from package, if not available, install from GitHub
-        local deps_to_install=()
-        for dep in "${missing_deps[@]}"; do
-            if [[ "$dep" == "fzf" ]]; then
-                # Try apt first, if fails, install from GitHub
-                if ! apt-get install -y fzf 2>/dev/null; then
-                    echo -e "${YELLOW}Installing fzf from GitHub...${NC}"
-                    local fzf_dir
-                    fzf_dir=$(mktemp -d)
-                    # Detect architecture
-                    local arch
-                    arch=$(uname -m)
-                    case "$arch" in
-                        x86_64) arch="amd64" ;;
-                        aarch64|arm64) arch="arm64" ;;
-                        armv7l|armv6l) arch="arm" ;;
-                        *) arch="amd64" ;;
-                    esac
-                    # Download fzf binary - get latest version
-                    local fzf_version
-                    if command -v jq &>/dev/null; then
-                        fzf_version=$(curl -fsSL https://api.github.com/repos/junegunn/fzf/releases/latest 2>/dev/null | jq -r '.tag_name' 2>/dev/null | sed 's/^v//' || echo "0.50.0")
-                    else
-                        fzf_version="0.50.0"
-                    fi
-                    if curl -fsSL "https://github.com/junegunn/fzf/releases/latest/download/fzf-${fzf_version}-linux_${arch}.tar.gz" -o "$fzf_dir/fzf.tar.gz" 2>/dev/null || \
-                       curl -fsSL "https://github.com/junegunn/fzf/releases/download/${fzf_version}/fzf-${fzf_version}-linux_${arch}.tar.gz" -o "$fzf_dir/fzf.tar.gz" 2>/dev/null; then
-                        tar -xzf "$fzf_dir/fzf.tar.gz" -C "$fzf_dir" 2>/dev/null
-                        install -m 755 "$fzf_dir/fzf" /usr/local/bin/fzf 2>/dev/null || true
-                        rm -rf "$fzf_dir"
-                    else
-                        # Try alternative method - use install script
-                        curl -fsSL https://raw.githubusercontent.com/junegunn/fzf/master/install | bash -s -- --bin 2>/dev/null || true
-                    fi
-                fi
-            else
-                deps_to_install+=("$dep")
-            fi
-        done
-        if [[ ${#deps_to_install[@]} -gt 0 ]]; then
-            apt-get update -qq && apt-get install -y "${deps_to_install[@]}" || {
-                echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${deps_to_install[*]}${NC}"
-                exit 1
-            }
-        fi
+        apt-get update -qq && apt-get install -y "${missing_deps[@]}" || {
+            echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
+            exit 1
+        }
+        # Try to install optional menu tools (don't fail if they're not available)
+        echo -e "${BLUE}Installing optional menu tools (fzf, dialog, whiptail)...${NC}"
+        apt-get install -y fzf dialog whiptail 2>/dev/null || {
+            echo -e "${YELLOW}⚠️  Some optional menu tools could not be installed.${NC}"
+            echo -e "${YELLOW}   Menus will use basic text input if no tool is available.${NC}"
+        }
         ;;
     fedora | centos | rhel)
         echo -e "${BLUE}Installing ${missing_deps[*]} using package manager...${NC}"
@@ -184,11 +165,15 @@ check_dependencies() {
                 echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
                 exit 1
             }
+            # Try to install optional menu tools
+            dnf install -y fzf dialog newt 2>/dev/null || true
         elif command -v yum &>/dev/null; then
             yum install -y "${missing_deps[@]}" || {
                 echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
                 exit 1
             }
+            # Try to install optional menu tools
+            yum install -y fzf dialog newt 2>/dev/null || true
         else
             echo -e "${RED}❌ No package manager found (dnf/yum). Please install manually: ${missing_deps[*]}${NC}"
             exit 1
@@ -200,6 +185,8 @@ check_dependencies() {
             echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
             exit 1
         }
+        # Try to install optional menu tools
+        pacman -S --noconfirm fzf dialog libnewt 2>/dev/null || true
         ;;
     *)
         echo -e "${RED}❌ Unsupported OS (${os_id:-unknown}). Please install manually: ${missing_deps[*]}${NC}"
@@ -843,7 +830,7 @@ do_install() {
                 echo -e "  ➡️  Downloading library files for '${YELLOW}ipcheck${NC}' from GitHub..."
                 local temp_lib
                 temp_lib=$(mktemp -d)
-                local lib_files=("core.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_main.sh" "menu_ip_check.sh" "menu_vpn.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
+                local lib_files=("core.sh" "menu_helpers.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_main.sh" "menu_ip_check.sh" "menu_vpn.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
                 local download_success=true
                 for lib_file in "${lib_files[@]}"; do
                     if ! curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/lib/$lib_file" -o "$temp_lib/$lib_file" 2>/dev/null; then
@@ -905,7 +892,7 @@ do_install() {
                 echo -e "  ➡️  Downloading library files for '${YELLOW}ipcheck${NC}' from GitHub..."
                 local temp_lib
                 temp_lib=$(mktemp -d)
-                local lib_files=("core.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_main.sh" "menu_ip_check.sh" "menu_vpn.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
+                local lib_files=("core.sh" "menu_helpers.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_main.sh" "menu_ip_check.sh" "menu_vpn.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
                 local download_success=true
                 for lib_file in "${lib_files[@]}"; do
                     if ! curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/lib/$lib_file" -o "$temp_lib/$lib_file" 2>/dev/null; then

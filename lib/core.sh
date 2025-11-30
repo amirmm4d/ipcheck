@@ -44,3 +44,16 @@ get_server_ip() {
     curl -s --max-time 10 https://api.ipify.org || curl -s --max-time 10 https://ifconfig.me || echo ""
 }
 
+# Detect best available menu tool (priority: fzf > dialog > whiptail > none)
+detect_menu_tool() {
+    if command -v fzf &>/dev/null; then
+        echo "fzf"
+    elif command -v dialog &>/dev/null; then
+        echo "dialog"
+    elif command -v whiptail &>/dev/null; then
+        echo "whiptail"
+    else
+        echo "none"
+    fi
+}
+

@@ -34,19 +34,12 @@ show_vpn_menu() {
         "7) ⬅️  Back to main menu"
     )
     
-    local selected=""
-    local vpn_choice=""
+    local selected
+    selected=$(show_menu "🔧 VPN Installation / نصب VPN" "${menu_options[@]}")
     
-    if command -v fzf &>/dev/null; then
-        selected=$(printf '%s\n' "${menu_options[@]}" | \
-            fzf --height=12 --reverse --border \
-            --header="🔧 VPN Installation / نصب VPN" \
-            --prompt="👉 Select VPN > " \
-            --pointer="▶" 2>/dev/null || echo "")
-        
-        if [[ -n "$selected" ]]; then
-            vpn_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
-        fi
+    local vpn_choice=""
+    if [[ -n "$selected" ]]; then
+        vpn_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
     fi
     
     if [[ -z "$vpn_choice" ]]; then

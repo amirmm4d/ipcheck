@@ -11,19 +11,12 @@ show_ip_check_menu() {
         "4) ⬅️  Back to main menu / بازگشت به منوی اصلی"
     )
     
-    local selected=""
-    local input_method=""
+    local selected
+    selected=$(show_menu "📋 IP Check Options / گزینه‌های بررسی IP" "${menu_options[@]}")
     
-    if command -v fzf &>/dev/null; then
-        selected=$(printf '%s\n' "${menu_options[@]}" | \
-            fzf --height=10 --reverse --border \
-            --header="📋 IP Check Options / گزینه‌های بررسی IP" \
-            --prompt="👉 Select input method > " \
-            --pointer="▶" 2>/dev/null || echo "")
-        
-        if [[ -n "$selected" ]]; then
-            input_method=$(echo "$selected" | grep -o '^[0-9]' | head -1)
-        fi
+    local input_method=""
+    if [[ -n "$selected" ]]; then
+        input_method=$(echo "$selected" | grep -o '^[0-9]' | head -1)
     fi
     
     if [[ -z "$input_method" ]]; then
@@ -224,21 +217,11 @@ show_check_options_menu() {
     menu_items+=("j - JSON Output")
     menu_items+=("l - Enable Logging")
     
-    # Use fzf with multi-select
-    local selected_items=""
-    if command -v fzf &>/dev/null; then
-        selected_items=$(printf '%s\n' "${menu_items[@]}" | \
-            fzf --multi --height=20 --reverse --border \
-            --header="Select Check Options / انتخاب گزینه‌های بررسی (Space to select, Enter to confirm)" \
-            --prompt="Options > " \
-            --pointer="▶" \
-            --marker="✓ " 2>/dev/null || echo "")
-    fi
+    # Use universal multi-select menu
+    local selected_items
+    selected_items=$(show_multi_menu "Select Check Options / انتخاب گزینه‌های بررسی" "${menu_items[@]}")
     
     if [[ -z "$selected_items" ]]; then
-        # Fallback: show simple message and return cancel
-        echo -e "${YELLOW}⚠ fzf is not available. Please install fzf to use interactive menu.${NC}"
-        echo -e "${YELLOW}You can run ipcheck with command-line flags instead.${NC}"
         IPCHECK_MENU_RESULT="FLAGS:CANCEL"
         return
     fi
@@ -246,12 +229,15 @@ show_check_options_menu() {
     # Extract flags from selected items (skip section headers)
     local selected_flags=""
     while IFS= read -r line; do
+        # Skip empty lines
+        [[ -z "$line" ]] && continue
         # Skip section headers (lines starting with ━━━)
         if [[ "$line" =~ ^━━━ ]]; then
             continue
         fi
         # Extract flag (first character before space and dash)
-        if [[ "$line" =~ ^([a-zA-Z0-9]) ]]; then
+        # Format: "q - IPQualityScore" or "q - IPQualityScore (API key required)"
+        if [[ "$line" =~ ^([a-zA-Z0-9])[[:space:]]*-[[:space:]]* ]]; then
             local flag="${BASH_REMATCH[1]}"
             # Check if option is available (not disabled - doesn't contain "API key required")
             if [[ ! "$line" =~ "API key required" ]]; then

@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.27}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.28}"
     echo -e "${NC}"
     echo
 }
@@ -46,7 +46,7 @@ interactive_menu() {
     while true; do
         show_logo
         
-        # Use fzf for menu selection
+        # Use universal menu function
         local menu_options=(
             "1) 🔍 Check IP Address / بررسی آدرس IP"
             "2) 🔧 Install VPN Server / نصب سرور VPN"
@@ -54,20 +54,14 @@ interactive_menu() {
             "4) ❌ Exit / خروج"
         )
         
-        local selected=""
-        if command -v fzf &>/dev/null; then
-            selected=$(printf '%s\n' "${menu_options[@]}" | \
-                fzf --height=10 --reverse --border \
-                --header="📋 Main Menu / منوی اصلی" \
-                --prompt="👉 Select option > " \
-                --pointer="▶" 2>/dev/null || echo "")
-        fi
+        local selected
+        selected=$(show_menu "📋 Main Menu / منوی اصلی" "${menu_options[@]}")
         
+        local main_choice=""
         if [[ -z "$selected" ]]; then
-            # Fallback to old menu if fzf fails or not available
+            # Fallback to old menu if no tool available
             show_main_menu
             echo -ne "${BLUE}👉 Select an option (1-4): ${NC}"
-            local main_choice=""
             if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
                 exec 3< /dev/tty
                 IFS= read -r main_choice <&3
@@ -82,10 +76,7 @@ interactive_menu() {
                 echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
                 exit 0
             fi
-            # Use the choice directly
-            main_choice="$main_choice"
         else
-        
             # Extract choice number (first character)
             main_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
         fi
