@@ -3,33 +3,41 @@
 show_ip_check_menu() {
     show_logo
     
-    # Use fzf for input method selection
-    local menu_options=(
-        "1) ✍️  Enter IP address(es) manually / وارد کردن دستی آدرس IP"
-        "2) 🖥️  Check server's public IP / بررسی IP عمومی سرور"
-        "3) 📄 Load from file / بارگذاری از فایل"
-        "4) ⬅️  Back to main menu / بازگشت به منوی اصلی"
-    )
-    
+    # Check if dialog is available
     local tool
     tool=$(detect_menu_tool)
     
     local input_method=""
     
-    if [[ "$tool" != "none" ]]; then
+    if [[ "$tool" == "dialog" ]]; then
+        # Use dialog for input method selection
+        local menu_options=(
+            "✍️  Enter IP address(es) manually / وارد کردن دستی آدرس IP"
+            "🖥️  Check server's public IP / بررسی IP عمومی سرور"
+            "📄 Load from file / بارگذاری از فایل"
+            "⬅️  Back to main menu / بازگشت به منوی اصلی"
+        )
+        
         local selected
         selected=$(show_menu "📋 IP Check Options / گزینه‌های بررسی IP" "${menu_options[@]}")
         
         if [[ -n "$selected" ]]; then
-            input_method=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+            # Map selection to method number
+            if [[ "$selected" =~ "Enter IP" ]] || [[ "$selected" =~ "وارد کردن دستی" ]]; then
+                input_method="1"
+            elif [[ "$selected" =~ "Check server" ]] || [[ "$selected" =~ "بررسی IP عمومی" ]]; then
+                input_method="2"
+            elif [[ "$selected" =~ "Load from file" ]] || [[ "$selected" =~ "بارگذاری از فایل" ]]; then
+                input_method="3"
+            elif [[ "$selected" =~ "Back" ]] || [[ "$selected" =~ "بازگشت" ]]; then
+                input_method="4"
+            fi
         else
             # User cancelled
             IPCHECK_MENU_RESULT="INPUT:CANCEL"
             return
         fi
-    fi
-    
-    if [[ -z "$input_method" ]]; then
+    else
         # Fallback to old menu
         clear
         show_logo
@@ -64,13 +72,14 @@ show_ip_check_menu() {
     local result=""
     case "$input_method" in
         1)
-            # Use fzf to prompt for IP input (or fallback to read)
-            ip_input=$(echo "" | fzf --print-query --height=3 --reverse --border \
-                --header="📝 Enter IP address(es) (comma-separated) / وارد کردن آدرس IP" \
-                --prompt="IP > " 2>/dev/null | head -1)
+            # Use dialog input box for IP input
+            if [[ "$tool" == "dialog" ]]; then
+                ip_input=$(show_input_dialog "📝 Enter IP Address / وارد کردن آدرس IP" \
+                    "Enter IP address(es) separated by commas:\nوارد کردن آدرس IP (جدا شده با کاما):" "")
+            fi
             
             if [[ -z "$ip_input" ]]; then
-                # Fallback to regular read if fzf doesn't work
+                # Fallback to regular read if dialog doesn't work
                 echo -ne "${BLUE}📝 Enter IP address(es) (comma-separated): ${NC}"
                 if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
                     exec 3< /dev/tty
@@ -120,14 +129,11 @@ show_ip_check_menu() {
             fi
             ;;
         3)
-            # Use fzf to select file (with file browser)
-            local file_path
-            file_path=$(find . -type f 2>/dev/null | head -50 | \
-                fzf --height=15 --reverse --border \
-                --header="📁 Select file / انتخاب فایل" \
-                --prompt="File > " \
-                --preview="head -20 {} 2>/dev/null || echo 'Cannot preview'" \
-                --preview-window=right:50%:wrap 2>/dev/null || echo "")
+            # Use dialog file selector
+            local file_path=""
+            if [[ "$tool" == "dialog" ]]; then
+                file_path=$(show_file_dialog "📁 Select File / انتخاب فایل" "$HOME")
+            fi
             
             if [[ -z "$file_path" ]]; then
                 # Fallback to regular read
@@ -184,7 +190,7 @@ show_check_options_menu() {
         has_ht_key=1
     fi
     
-    # Build fzf menu options with sections and availability
+    # Build menu options with sections and availability
     local -a menu_items=()
     
     # Basic Checks section
@@ -227,23 +233,24 @@ show_check_options_menu() {
     menu_items+=("j - JSON Output")
     menu_items+=("l - Enable Logging")
     
-    # Use universal multi-select menu
+    # Check if dialog is available
     local tool
     tool=$(detect_menu_tool)
     
     local selected_items=""
     
-    if [[ "$tool" != "none" ]]; then
+    if [[ "$tool" == "dialog" ]]; then
         selected_items=$(show_multi_menu "Select Check Options / انتخاب گزینه‌های بررسی" "${menu_items[@]}")
     fi
     
     if [[ -z "$selected_items" ]]; then
-        # Show fallback message if no tool available
-        if [[ "$tool" == "none" ]]; then
+        # Show fallback message if no dialog available
+        if [[ "$tool" != "dialog" ]]; then
             clear
             echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -e "${YELLOW}⚠ No interactive menu tool available (fzf/dialog/whiptail)${NC}"
-            echo -e "${YELLOW}Please install one of these tools or use command-line flags.${NC}"
+            echo -e "${YELLOW}⚠ dialog is not installed.${NC}"
+            echo -e "${YELLOW}Please install dialog: sudo apt-get install dialog${NC}"
+            echo -e "${YELLOW}Or use command-line flags instead.${NC}"
             echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             sleep 2
         fi

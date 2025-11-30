@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.31}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.32}"
     echo -e "${NC}"
     echo
 }
@@ -44,36 +44,48 @@ show_main_menu() {
 
 interactive_menu() {
     while true; do
-        # Check if any menu tool is available
+        # Check if dialog is available
         local tool
         tool=$(detect_menu_tool)
         
         local main_choice=""
         local use_fallback=false
         
-        if [[ "$tool" != "none" ]]; then
-            # Use menu tool
+        if [[ "$tool" == "dialog" ]]; then
+            # Use dialog menu
             show_logo
             local menu_options=(
-                "1) 🔍 Check IP Address / بررسی آدرس IP"
-                "2) 🔧 Install VPN Server / نصب سرور VPN"
-                "3) 🗑️  Uninstall IPCheck / حذف IPCheck"
-                "4) ❌ Exit / خروج"
+                "🔍 Check IP Address / بررسی آدرس IP"
+                "🔧 Install VPN Server / نصب سرور VPN"
+                "🗑️  Uninstall IPCheck / حذف IPCheck"
+                "❌ Exit / خروج"
             )
             
             local selected
             selected=$(show_menu "📋 Main Menu / منوی اصلی" "${menu_options[@]}")
             
             if [[ -n "$selected" ]]; then
-                # Extract choice number (first character)
-                main_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+                # Map selection to choice number
+                case "$selected" in
+                    *"Check IP Address"*|*"بررسی آدرس IP"*)
+                        main_choice="1"
+                        ;;
+                    *"Install VPN Server"*|*"نصب سرور VPN"*)
+                        main_choice="2"
+                        ;;
+                    *"Uninstall IPCheck"*|*"حذف IPCheck"*)
+                        main_choice="3"
+                        ;;
+                    *"Exit"*|*"خروج"*)
+                        main_choice="4"
+                        ;;
+                esac
             else
-                # Menu tool failed or returned empty - fall back to text menu
-                # Don't exit, use fallback instead
+                # User cancelled or dialog failed - fall back to text menu
                 use_fallback=true
             fi
         else
-            # No menu tool available, use fallback
+            # No dialog available, use fallback
             use_fallback=true
         fi
         

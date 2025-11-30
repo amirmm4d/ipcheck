@@ -1,65 +1,29 @@
 # --- Menu Helper Functions ---
-# Functions to create menus using different tools (fzf, dialog, whiptail, or fallback)
+# Functions to create menus using dialog
 
-# Show menu using fzf
-show_menu_fzf() {
+# Show single-select menu using dialog
+show_menu() {
     local title="$1"
     shift
     local menu_items=("$@")
     
-    # Check if we have a terminal (try multiple methods for sudo compatibility)
+    # Check if dialog is available
+    if ! command -v dialog &>/dev/null; then
+        echo ""
+        return 1
+    fi
+    
+    # Check if we have a terminal
     local has_terminal=false
     if [[ -t 1 ]] && [[ -t 0 ]]; then
         has_terminal=true
     elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
-        # Even if stdin/stdout aren't terminals, /dev/tty might be available
         has_terminal=true
     fi
     
     if [[ "$has_terminal" == "false" ]]; then
-        # Not a terminal, can't use fzf
         echo ""
-        return
-    fi
-    
-    local selected
-    # Try to use fzf, redirect both stdin and stderr properly
-    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-        selected=$(printf '%s\n' "${menu_items[@]}" | \
-            fzf --height=10 --reverse --border \
-            --header="$title" \
-            --prompt="👉 Select > " \
-            --pointer="▶" < /dev/tty 2>/dev/tty || echo "")
-    else
-        selected=$(printf '%s\n' "${menu_items[@]}" | \
-            fzf --height=10 --reverse --border \
-            --header="$title" \
-            --prompt="👉 Select > " \
-            --pointer="▶" 2>/dev/null || echo "")
-    fi
-    
-    echo "$selected"
-}
-
-# Show menu using dialog
-show_menu_dialog() {
-    local title="$1"
-    shift
-    local menu_items=("$@")
-    
-    # Check if we have a terminal (try multiple methods for sudo compatibility)
-    local has_terminal=false
-    if [[ -t 1 ]] && [[ -t 0 ]]; then
-        has_terminal=true
-    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
-        # Even if stdin/stdout aren't terminals, /dev/tty might be available
-        has_terminal=true
-    fi
-    
-    if [[ "$has_terminal" == "false" ]]; then
-        # Not a terminal, can't use dialog
-        echo ""
-        return
+        return 1
     fi
     
     # Build dialog menu items (tag item description)
@@ -95,92 +59,20 @@ show_menu_dialog() {
     fi
 }
 
-# Show menu using whiptail
-show_menu_whiptail() {
-    local title="$1"
-    shift
-    local menu_items=("$@")
-    
-    # Check if we have a terminal (try multiple methods for sudo compatibility)
-    local has_terminal=false
-    if [[ -t 1 ]] && [[ -t 0 ]]; then
-        has_terminal=true
-    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
-        # Even if stdin/stdout aren't terminals, /dev/tty might be available
-        has_terminal=true
-    fi
-    
-    if [[ "$has_terminal" == "false" ]]; then
-        # Not a terminal, can't use whiptail
-        echo ""
-        return
-    fi
-    
-    # Build whiptail menu items (tag item description)
-    local whiptail_items=()
-    local i=1
-    for item in "${menu_items[@]}"; do
-        whiptail_items+=("$i" "$item")
-        ((i++))
-    done
-    
-    local choice
-    # Use /dev/tty if available for better sudo compatibility
-    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-        choice=$(whiptail --clear --stdout \
-            --title "$title" \
-            --menu "Select an option:" \
-            15 70 10 \
-            "${whiptail_items[@]}" < /dev/tty 2>/dev/tty || echo "")
-    else
-        choice=$(whiptail --clear --stdout \
-            --title "$title" \
-            --menu "Select an option:" \
-            15 70 10 \
-            "${whiptail_items[@]}" 2>/dev/null || echo "")
-    fi
-    
-    if [[ -n "$choice" ]] && [[ "$choice" =~ ^[0-9]+$ ]]; then
-        # Return the selected item text
-        local idx=$((choice-1))
-        if [[ $idx -ge 0 ]] && [[ $idx -lt ${#menu_items[@]} ]]; then
-            echo "${menu_items[$idx]}"
-        fi
-    fi
-}
-
-# Show multi-select menu using fzf
-show_multi_menu_fzf() {
-    local title="$1"
-    shift
-    local menu_items=("$@")
-    
-    # Ensure we're reading from terminal
-    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
-        # Not a terminal, can't use fzf
-        echo ""
-        return
-    fi
-    
-    local selected_items
-    selected_items=$(printf '%s\n' "${menu_items[@]}" | \
-        fzf --multi --height=20 --reverse --border \
-        --header="$title (Space to select, Enter to confirm)" \
-        --prompt="Options > " \
-        --pointer="▶" \
-        --marker="✓ " < /dev/tty 2>/dev/null || echo "")
-    
-    echo "$selected_items"
-}
-
 # Show multi-select menu using dialog (checklist)
-show_multi_menu_dialog() {
+show_multi_menu() {
     local title="$1"
     shift
     local menu_items=("$@")
+    
+    # Check if dialog is available
+    if ! command -v dialog &>/dev/null; then
+        echo ""
+        return 1
+    fi
     
     # Build dialog checklist items (tag item status description)
-    # Skip section headers for dialog (they don't work well)
+    # Skip section headers for dialog
     local dialog_items=()
     local item_indices=()  # Track original indices
     local i=0
@@ -197,22 +89,37 @@ show_multi_menu_dialog() {
     
     if [[ ${#dialog_items[@]} -eq 0 ]]; then
         echo ""
-        return
+        return 1
     fi
     
-    # Ensure we're reading from terminal
-    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
-        # Not a terminal, can't use dialog
+    # Check if we have a terminal
+    local has_terminal=false
+    if [[ -t 1 ]] && [[ -t 0 ]]; then
+        has_terminal=true
+    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        has_terminal=true
+    fi
+    
+    if [[ "$has_terminal" == "false" ]]; then
         echo ""
-        return
+        return 1
     fi
     
     local choices
-    choices=$(dialog --clear --stdout \
-        --title "$title" \
-        --checklist "Select options (Space to toggle, Tab to move, Enter to confirm):" \
-        20 70 15 \
-        "${dialog_items[@]}" < /dev/tty 2>/dev/null || echo "")
+    # Use /dev/tty if available for better sudo compatibility
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        choices=$(dialog --clear --stdout \
+            --title "$title" \
+            --checklist "Select options (Space to toggle, Tab to move, Enter to confirm):" \
+            20 70 15 \
+            "${dialog_items[@]}" < /dev/tty 2>/dev/tty || echo "")
+    else
+        choices=$(dialog --clear --stdout \
+            --title "$title" \
+            --checklist "Select options (Space to toggle, Tab to move, Enter to confirm):" \
+            20 70 15 \
+            "${dialog_items[@]}" 2>/dev/null || echo "")
+    fi
     
     if [[ -n "$choices" ]]; then
         # Return selected items using original indices
@@ -225,106 +132,85 @@ show_multi_menu_dialog() {
     fi
 }
 
-# Show multi-select menu using whiptail (checklist)
-show_multi_menu_whiptail() {
+# Show input dialog for text input
+show_input_dialog() {
     local title="$1"
-    shift
-    local menu_items=("$@")
+    local prompt="$2"
+    local default_value="${3:-}"
     
-    # Build whiptail checklist items (tag item status description)
-    # Skip section headers for whiptail (they don't work well)
-    local whiptail_items=()
-    local item_indices=()  # Track original indices
-    local i=0
-    local whiptail_index=1
-    for item in "${menu_items[@]}"; do
-        # Skip section headers
-        if [[ ! "$item" =~ ^━━━ ]]; then
-            whiptail_items+=("$whiptail_index" "$item" "OFF")
-            item_indices+=("$i")
-            ((whiptail_index++))
-        fi
-        ((i++))
-    done
-    
-    if [[ ${#whiptail_items[@]} -eq 0 ]]; then
+    # Check if dialog is available
+    if ! command -v dialog &>/dev/null; then
         echo ""
-        return
+        return 1
     fi
     
-    # Ensure we're reading from terminal
-    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
-        # Not a terminal, can't use whiptail
+    # Check if we have a terminal
+    local has_terminal=false
+    if [[ -t 1 ]] && [[ -t 0 ]]; then
+        has_terminal=true
+    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        has_terminal=true
+    fi
+    
+    if [[ "$has_terminal" == "false" ]]; then
         echo ""
-        return
+        return 1
     fi
     
-    local choices
-    choices=$(whiptail --clear --stdout \
-        --title "$title" \
-        --checklist "Select options (Space to toggle, Tab to move, Enter to confirm):" \
-        20 70 15 \
-        "${whiptail_items[@]}" < /dev/tty 2>/dev/null || echo "")
-    
-    if [[ -n "$choices" ]]; then
-        # Return selected items using original indices
-        local selected_text=""
-        for choice in $choices; do
-            local orig_idx="${item_indices[$((choice-1))]}"
-            selected_text+="${menu_items[$orig_idx]}"$'\n'
-        done
-        echo "$selected_text"
+    local input
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        input=$(dialog --clear --stdout \
+            --title "$title" \
+            --inputbox "$prompt" \
+            10 60 \
+            "$default_value" < /dev/tty 2>/dev/tty || echo "")
+    else
+        input=$(dialog --clear --stdout \
+            --title "$title" \
+            --inputbox "$prompt" \
+            10 60 \
+            "$default_value" 2>/dev/null || echo "")
     fi
+    
+    echo "$input"
 }
 
-# Universal menu function that auto-detects best tool
-show_menu() {
+# Show file selection dialog
+show_file_dialog() {
     local title="$1"
-    shift
-    local menu_items=("$@")
+    local start_dir="${2:-.}"
     
-    local tool
-    tool=$(detect_menu_tool)
+    # Check if dialog is available
+    if ! command -v dialog &>/dev/null; then
+        echo ""
+        return 1
+    fi
     
-    case "$tool" in
-        fzf)
-            show_menu_fzf "$title" "${menu_items[@]}"
-            ;;
-        dialog)
-            show_menu_dialog "$title" "${menu_items[@]}"
-            ;;
-        whiptail)
-            show_menu_whiptail "$title" "${menu_items[@]}"
-            ;;
-        *)
-            # Fallback: return first item or empty
-            echo ""
-            ;;
-    esac
-}
-
-# Universal multi-select menu function
-show_multi_menu() {
-    local title="$1"
-    shift
-    local menu_items=("$@")
+    # Check if we have a terminal
+    local has_terminal=false
+    if [[ -t 1 ]] && [[ -t 0 ]]; then
+        has_terminal=true
+    elif [[ -c /dev/tty ]] && [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        has_terminal=true
+    fi
     
-    local tool
-    tool=$(detect_menu_tool)
+    if [[ "$has_terminal" == "false" ]]; then
+        echo ""
+        return 1
+    fi
     
-    case "$tool" in
-        fzf)
-            show_multi_menu_fzf "$title" "${menu_items[@]}"
-            ;;
-        dialog)
-            show_multi_menu_dialog "$title" "${menu_items[@]}"
-            ;;
-        whiptail)
-            show_multi_menu_whiptail "$title" "${menu_items[@]}"
-            ;;
-        *)
-            # Fallback: return empty
-            echo ""
-            ;;
-    esac
+    local file_path
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        file_path=$(dialog --clear --stdout \
+            --title "$title" \
+            --fselect "$start_dir" \
+            20 70 < /dev/tty 2>/dev/tty || echo "")
+    else
+        file_path=$(dialog --clear --stdout \
+            --title "$title" \
+            --fselect "$start_dir" \
+            20 70 2>/dev/null || echo "")
+    fi
+    
+    echo "$file_path"
 }

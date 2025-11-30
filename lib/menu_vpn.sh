@@ -23,15 +23,15 @@ show_vpn_menu() {
         return
     fi
     
-    # Use fzf for VPN selection
+    # Use dialog for VPN selection
     local menu_options=(
-        "1) 🚀 Sing-box (Recommended for Reality)"
-        "2) ⚡ Xray (Xray-core)"
-        "3) 🌐 V2Ray (V2Fly)"
-        "4) 🔒 Shadowsocks-libev"
-        "5) 🛡️  OpenVPN"
-        "6) 🔐 OpenConnect (Cisco AnyConnect compatible)"
-        "7) ⬅️  Back to main menu"
+        "🚀 Sing-box (Recommended for Reality)"
+        "⚡ Xray (Xray-core)"
+        "🌐 V2Ray (V2Fly)"
+        "🔒 Shadowsocks-libev"
+        "🛡️  OpenVPN"
+        "🔐 OpenConnect (Cisco AnyConnect compatible)"
+        "⬅️  Back to main menu"
     )
     
     local tool
@@ -39,12 +39,35 @@ show_vpn_menu() {
     
     local vpn_choice=""
     
-    if [[ "$tool" != "none" ]]; then
+    if [[ "$tool" == "dialog" ]]; then
         local selected
         selected=$(show_menu "🔧 VPN Installation / نصب VPN" "${menu_options[@]}")
         
         if [[ -n "$selected" ]]; then
-            vpn_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+            # Map selection to choice number
+            case "$selected" in
+                *"Sing-box"*)
+                    vpn_choice="1"
+                    ;;
+                *"Xray"*)
+                    vpn_choice="2"
+                    ;;
+                *"V2Ray"*)
+                    vpn_choice="3"
+                    ;;
+                *"Shadowsocks"*)
+                    vpn_choice="4"
+                    ;;
+                *"OpenVPN"*)
+                    vpn_choice="5"
+                    ;;
+                *"OpenConnect"*)
+                    vpn_choice="6"
+                    ;;
+                *"Back"*)
+                    vpn_choice="7"
+                    ;;
+            esac
         else
             # User cancelled
             return
