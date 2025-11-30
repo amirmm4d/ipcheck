@@ -249,7 +249,7 @@ show_check_options_menu() {
         echo -e "${YELLOW}Instructions / راهنما:${NC}"
         echo -e "  ${BLUE}↑${NC}/${BLUE}↓${NC} - Move up/down / حرکت بالا/پایین"
         echo -e "  ${BLUE}Space${NC} - Toggle selection / تغییر انتخاب"
-        echo -e "  ${BLUE}Enter${NC} - Confirm (default: all basic checks) / تایید (پیش‌فرض: همه بررسی‌های پایه)"
+        echo -e "  ${BLUE}Enter${NC} - Confirm selection / تایید انتخاب"
         echo -e "  ${BLUE}q${NC} or ${BLUE}ESC${NC} - Cancel / لغو"
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     }
@@ -323,10 +323,25 @@ show_check_options_menu() {
                 fi
             done
             
-            # If nothing selected, use default (all basic checks)
+            # If nothing selected, show message and continue
             if [[ -z "$selected_flags" ]]; then
-                selected_flags="qasrch"
+                # Show message briefly
+                clear
+                show_logo
+                echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "${YELLOW}⚠ Please select at least one option / لطفاً حداقل یک گزینه انتخاب کنید${NC}"
+                echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                sleep 1.5 2>/dev/null || sleep 1
+                continue
             fi
+            
+            # Show confirmation with checkmark
+            clear
+            show_logo
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${GREEN}✓${NC} ${BLUE}Selected options confirmed / گزینه‌های انتخاب شده تایید شد${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            sleep 0.8 2>/dev/null || sleep 0.5
             
             # Set result first, then restore terminal
             IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
