@@ -25,31 +25,61 @@ show_vpn_menu() {
     
     # Use fzf for VPN selection
     local menu_options=(
-        "1) 🚀 Sing-box|Modern, lightweight, supports Reality protocol (Recommended for Reality)|1"
-        "2) ⚡ Xray|High-performance proxy platform (Xray-core)|2"
-        "3) 🌐 V2Ray|Popular proxy platform with extensive features (V2Fly)|3"
-        "4) 🔒 Shadowsocks-libev|Lightweight SOCKS5 proxy|4"
-        "5) 🛡️  OpenVPN|Industry-standard VPN protocol|5"
-        "6) 🔐 OpenConnect|Compatible with Cisco AnyConnect VPN|6"
-        "7) ⬅️  Back to main menu|Return to main menu|7"
+        "1) 🚀 Sing-box (Recommended for Reality)"
+        "2) ⚡ Xray (Xray-core)"
+        "3) 🌐 V2Ray (V2Fly)"
+        "4) 🔒 Shadowsocks-libev"
+        "5) 🛡️  OpenVPN"
+        "6) 🔐 OpenConnect (Cisco AnyConnect compatible)"
+        "7) ⬅️  Back to main menu"
     )
     
-    local selected
-    selected=$(printf '%s\n' "${menu_options[@]}" | \
-        fzf --height=15 --reverse --border --header="🔧 VPN Installation / نصب VPN" \
-        --prompt="👉 Select VPN > " \
-        --pointer="▶" \
-        --preview="echo {} | cut -d'|' -f2" \
-        --preview-window=right:40%:wrap \
-        --delimiter='|' \
-        --with-nth=1 || echo "")
+    local selected=""
+    local vpn_choice=""
     
-    if [[ -z "$selected" ]]; then
-        return
+    if command -v fzf &>/dev/null; then
+        selected=$(printf '%s\n' "${menu_options[@]}" | \
+            fzf --height=12 --reverse --border \
+            --header="🔧 VPN Installation / نصب VPN" \
+            --prompt="👉 Select VPN > " \
+            --pointer="▶" 2>/dev/null || echo "")
+        
+        if [[ -n "$selected" ]]; then
+            vpn_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+        fi
     fi
     
-    local vpn_choice
-    vpn_choice=$(echo "$selected" | cut -d'|' -f3)
+    if [[ -z "$vpn_choice" ]]; then
+        # Fallback to old menu
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}🔧 VPN Installation / نصب VPN${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+        echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${YELLOW}│${NC}  ${BLUE}Select VPN to install / انتخاب VPN برای نصب:${NC}"
+        echo -e "${YELLOW}│${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}🚀 Sing-box${NC} (Recommended for Reality)"
+        echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}⚡ Xray${NC} (Xray-core)"
+        echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}🌐 V2Ray${NC} (V2Fly)"
+        echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}🔒 Shadowsocks-libev${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}5)${NC} ${BLUE}🛡️  OpenVPN${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}6)${NC} ${BLUE}🔐 OpenConnect${NC} (Cisco AnyConnect compatible)"
+        echo -e "${YELLOW}│${NC}  ${GREEN}7)${NC} ${BLUE}⬅️  Back to main menu${NC}"
+        echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
+        echo
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -ne "${BLUE}👉 Select option (1-7): ${NC}"
+        
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -r vpn_choice <&3
+            exec 3<&-
+        elif [[ -t 0 ]]; then
+            IFS= read -r vpn_choice
+        else
+            IFS= read -r vpn_choice || vpn_choice=""
+        fi
+        vpn_choice=$(printf '%s' "$vpn_choice" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    fi
     
     case "$vpn_choice" in
         1) install_singbox ;;

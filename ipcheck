@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.2.26
+# ipcheck - Advanced, parallel IP reputation checker v2.2.27
 #
 # This is the main entry point. All functions are loaded from lib/ directory.
 

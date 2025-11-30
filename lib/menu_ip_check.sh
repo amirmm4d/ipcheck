@@ -5,29 +5,57 @@ show_ip_check_menu() {
     
     # Use fzf for input method selection
     local menu_options=(
-        "1) ✍️  Enter IP address(es) manually / وارد کردن دستی آدرس IP|Type one or more IP addresses (comma-separated)|1"
-        "2) 🖥️  Check server's public IP / بررسی IP عمومی سرور|Automatically detect and check this server's public IP|2"
-        "3) 📄 Load from file / بارگذاری از فایل|Load IP addresses from a text file (one per line)|3"
-        "4) ⬅️  Back to main menu / بازگشت به منوی اصلی|Return to main menu|4"
+        "1) ✍️  Enter IP address(es) manually / وارد کردن دستی آدرس IP"
+        "2) 🖥️  Check server's public IP / بررسی IP عمومی سرور"
+        "3) 📄 Load from file / بارگذاری از فایل"
+        "4) ⬅️  Back to main menu / بازگشت به منوی اصلی"
     )
     
-    local selected
-    selected=$(printf '%s\n' "${menu_options[@]}" | \
-        fzf --height=12 --reverse --border --header="📋 IP Check Options / گزینه‌های بررسی IP" \
-        --prompt="👉 Select input method > " \
-        --pointer="▶" \
-        --preview="echo {} | cut -d'|' -f2" \
-        --preview-window=right:40%:wrap \
-        --delimiter='|' \
-        --with-nth=1 || echo "")
+    local selected=""
+    local input_method=""
     
-    if [[ -z "$selected" ]]; then
-        IPCHECK_MENU_RESULT="INPUT:CANCEL"
-        return
+    if command -v fzf &>/dev/null; then
+        selected=$(printf '%s\n' "${menu_options[@]}" | \
+            fzf --height=10 --reverse --border \
+            --header="📋 IP Check Options / گزینه‌های بررسی IP" \
+            --prompt="👉 Select input method > " \
+            --pointer="▶" 2>/dev/null || echo "")
+        
+        if [[ -n "$selected" ]]; then
+            input_method=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+        fi
     fi
     
-    local input_method
-    input_method=$(echo "$selected" | cut -d'|' -f3)
+    if [[ -z "$input_method" ]]; then
+        # Fallback to old menu
+        clear
+        show_logo
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}📋 IP Check Options / گزینه‌های بررسی IP${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+        echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${YELLOW}│${NC}  ${BLUE}Input Method / روش ورودی:${NC}"
+        echo -e "${YELLOW}│${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}✍️  Enter IP address(es) manually${NC} / ${BLUE}وارد کردن دستی آدرس IP${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}🖥️  Check server's public IP${NC} / ${BLUE}بررسی IP عمومی سرور${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}📄 Load from file${NC} / ${BLUE}بارگذاری از فایل${NC}"
+        echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}⬅️  Back to main menu${NC} / ${BLUE}بازگشت به منوی اصلی${NC}"
+        echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
+        echo
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -ne "${BLUE}👉 Select input method (1-4): ${NC}"
+        
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -r input_method <&3
+            exec 3<&-
+        elif [[ -t 0 ]]; then
+            IFS= read -r input_method
+        else
+            IFS= read -r input_method || input_method=""
+        fi
+        input_method=$(printf '%s' "$input_method" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    fi
     
     local ip_input=""
     local result=""
@@ -159,59 +187,58 @@ show_check_options_menu() {
     # Basic Checks section
     menu_items+=("━━━ Basic Checks / بررسی‌های پایه ━━━")
     if [[ $has_ipqs_key -eq 1 ]]; then
-        menu_items+=("q|IPQualityScore|Basic Checks|✓")
+        menu_items+=("q - IPQualityScore")
     else
-        menu_items+=("q|IPQualityScore (API key required)|Basic Checks|✗")
+        menu_items+=("q - IPQualityScore (API key required)")
     fi
     if [[ $has_abuseipdb_key -eq 1 ]]; then
-        menu_items+=("a|AbuseIPDB|Basic Checks|✓")
+        menu_items+=("a - AbuseIPDB")
     else
-        menu_items+=("a|AbuseIPDB (API key required)|Basic Checks|✗")
+        menu_items+=("a - AbuseIPDB (API key required)")
     fi
-    menu_items+=("s|Scamalytics|Basic Checks|✓")
+    menu_items+=("s - Scamalytics")
     if [[ $has_ripe_key -eq 1 ]]; then
-        menu_items+=("r|RIPE Atlas|Basic Checks|✓")
+        menu_items+=("r - RIPE Atlas")
     else
-        menu_items+=("r|RIPE Atlas (API key required)|Basic Checks|✗")
+        menu_items+=("r - RIPE Atlas (API key required)")
     fi
-    menu_items+=("c|Check-Host|Basic Checks|✓")
+    menu_items+=("c - Check-Host")
     if [[ $has_ht_key -eq 1 ]]; then
-        menu_items+=("h|HostTracker|Basic Checks|✓")
+        menu_items+=("h - HostTracker")
     else
-        menu_items+=("h|HostTracker (API key required)|Basic Checks|✗")
+        menu_items+=("h - HostTracker (API key required)")
     fi
     
     # Advanced Features section
     menu_items+=("━━━ Advanced Features / ویژگی‌های پیشرفته ━━━")
-    menu_items+=("g|IP Quality Score|Advanced Features|✓")
-    menu_items+=("d|CDN Detection|Advanced Features|✓")
-    menu_items+=("t|Routing Health|Advanced Features|✓")
-    menu_items+=("p|Port Scan|Advanced Features|✓")
-    menu_items+=("R|Reality Test|Advanced Features|✓")
-    menu_items+=("u|Usage History|Advanced Features|✓")
-    menu_items+=("n|Suggestions|Advanced Features|✓")
+    menu_items+=("g - IP Quality Score")
+    menu_items+=("d - CDN Detection")
+    menu_items+=("t - Routing Health")
+    menu_items+=("p - Port Scan")
+    menu_items+=("R - Reality Test")
+    menu_items+=("u - Usage History")
+    menu_items+=("n - Suggestions")
     
     # Output Options section
     menu_items+=("━━━ Output Options / گزینه‌های خروجی ━━━")
-    menu_items+=("j|JSON Output|Output Options|✓")
-    menu_items+=("l|Enable Logging|Output Options|✓")
+    menu_items+=("j - JSON Output")
+    menu_items+=("l - Enable Logging")
     
     # Use fzf with multi-select
-    local selected_items
-    selected_items=$(printf '%s\n' "${menu_items[@]}" | \
-        fzf --multi --height=20 --reverse --border \
-        --header="Select Check Options / انتخاب گزینه‌های بررسی (Space to select, Tab to toggle, Enter to confirm)" \
-        --prompt="Options > " \
-        --pointer="▶" \
-        --marker="✓ " \
-        --preview="echo {} | cut -d'|' -f2" \
-        --preview-window=right:40%:wrap \
-        --delimiter='|' \
-        --with-nth=2 \
-        --bind="tab:toggle+down" \
-        --bind="btab:toggle+up" 2>/dev/null || echo "")
+    local selected_items=""
+    if command -v fzf &>/dev/null; then
+        selected_items=$(printf '%s\n' "${menu_items[@]}" | \
+            fzf --multi --height=20 --reverse --border \
+            --header="Select Check Options / انتخاب گزینه‌های بررسی (Space to select, Enter to confirm)" \
+            --prompt="Options > " \
+            --pointer="▶" \
+            --marker="✓ " 2>/dev/null || echo "")
+    fi
     
     if [[ -z "$selected_items" ]]; then
+        # Fallback: show simple message and return cancel
+        echo -e "${YELLOW}⚠ fzf is not available. Please install fzf to use interactive menu.${NC}"
+        echo -e "${YELLOW}You can run ipcheck with command-line flags instead.${NC}"
         IPCHECK_MENU_RESULT="FLAGS:CANCEL"
         return
     fi
@@ -223,14 +250,11 @@ show_check_options_menu() {
         if [[ "$line" =~ ^━━━ ]]; then
             continue
         fi
-        # Process only lines with flag format (single letter/number followed by |)
-        if [[ "$line" =~ ^[a-zA-Z0-9]+\| ]]; then
-            local flag
-            flag=$(echo "$line" | cut -d'|' -f1)
-            # Check if option is available (not disabled)
-            local available
-            available=$(echo "$line" | cut -d'|' -f4)
-            if [[ "$available" == "✓" ]]; then
+        # Extract flag (first character before space and dash)
+        if [[ "$line" =~ ^([a-zA-Z0-9]) ]]; then
+            local flag="${BASH_REMATCH[1]}"
+            # Check if option is available (not disabled - doesn't contain "API key required")
+            if [[ ! "$line" =~ "API key required" ]]; then
                 selected_flags+="$flag"
             fi
         fi

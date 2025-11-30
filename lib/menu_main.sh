@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.26}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.27}"
     echo -e "${NC}"
     echo
 }
@@ -48,30 +48,47 @@ interactive_menu() {
         
         # Use fzf for menu selection
         local menu_options=(
-            "1) 🔍 Check IP Address / بررسی آدرس IP|Analyze IP reputation, quality score, CDN detection, routing health|1"
-            "2) 🔧 Install VPN Server / نصب سرور VPN|Install Sing-box, Xray, V2Ray, Shadowsocks, OpenVPN, or OpenConnect|2"
-            "3) 🗑️  Uninstall IPCheck / حذف IPCheck|Remove IPCheck from your system|3"
-            "4) ❌ Exit / خروج|Exit the application|4"
+            "1) 🔍 Check IP Address / بررسی آدرس IP"
+            "2) 🔧 Install VPN Server / نصب سرور VPN"
+            "3) 🗑️  Uninstall IPCheck / حذف IPCheck"
+            "4) ❌ Exit / خروج"
         )
         
-        local selected
-        selected=$(printf '%s\n' "${menu_options[@]}" | \
-            fzf --height=15 --reverse --border --header="📋 Main Menu / منوی اصلی" \
-            --prompt="👉 Select option > " \
-            --pointer="▶" \
-            --preview="echo {} | cut -d'|' -f2" \
-            --preview-window=right:40%:wrap \
-            --delimiter='|' \
-            --with-nth=1 || echo "")
-        
-        if [[ -z "$selected" ]]; then
-            echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
-            exit 0
+        local selected=""
+        if command -v fzf &>/dev/null; then
+            selected=$(printf '%s\n' "${menu_options[@]}" | \
+                fzf --height=10 --reverse --border \
+                --header="📋 Main Menu / منوی اصلی" \
+                --prompt="👉 Select option > " \
+                --pointer="▶" 2>/dev/null || echo "")
         fi
         
-        # Extract choice number
-        local main_choice
-        main_choice=$(echo "$selected" | cut -d'|' -f3)
+        if [[ -z "$selected" ]]; then
+            # Fallback to old menu if fzf fails or not available
+            show_main_menu
+            echo -ne "${BLUE}👉 Select an option (1-4): ${NC}"
+            local main_choice=""
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                exec 3< /dev/tty
+                IFS= read -r main_choice <&3
+                exec 3<&-
+            elif [[ -t 0 ]]; then
+                IFS= read -r main_choice
+            else
+                IFS= read -r main_choice || main_choice=""
+            fi
+            main_choice=$(printf '%s' "$main_choice" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ "$main_choice" == "4" ]] || [[ -z "$main_choice" ]]; then
+                echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
+                exit 0
+            fi
+            # Use the choice directly
+            main_choice="$main_choice"
+        else
+        
+            # Extract choice number (first character)
+            main_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+        fi
         
         case "$main_choice" in
             1)
