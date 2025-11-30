@@ -253,9 +253,9 @@ show_check_options_menu() {
         
         echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo -e "${YELLOW}Instructions / راهنما:${NC}"
-        echo -e "  ${BLUE}↑${NC}/${BLUE}↓${NC} - Move up/down"
-        echo -e "  ${BLUE}Space${NC} - Toggle selection"
-        echo -e "  ${BLUE}Enter${NC} - Confirm selection"
+        echo -e "  ${BLUE}↑${NC}/${BLUE}↓${NC} - Move up/down / حرکت بالا/پایین"
+        echo -e "  ${BLUE}Space${NC} - Toggle selection / تغییر انتخاب"
+        echo -e "  ${BLUE}Enter${NC} - Confirm (default: all basic checks) / تایید (پیش‌فرض: همه بررسی‌های پایه)"
         echo -e "  ${BLUE}q${NC} or ${BLUE}ESC${NC} - Cancel / لغو"
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     }
@@ -329,12 +329,9 @@ show_check_options_menu() {
                 fi
             done
             
-            # If nothing selected, cancel
+            # If nothing selected, use default (all basic checks)
             if [[ -z "$selected_flags" ]]; then
-                restore_terminal
-                trap - EXIT INT TERM
-                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-                return
+                selected_flags="qasrch"
             fi
             
             # Set result first, then restore terminal
