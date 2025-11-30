@@ -1,65 +1,55 @@
 # --- IP Check Menu Functions ---
 
 show_ip_check_menu() {
-    clear
     show_logo
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}📋 IP Check Options / گزینه‌های بررسی IP${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
-    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}│${NC}  ${BLUE}Input Method / روش ورودی:${NC}"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}✍️  Enter IP address(es) manually${NC} / ${BLUE}وارد کردن دستی آدرس IP${NC}"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Type one or more IP addresses (comma-separated)"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} وارد کردن یک یا چند آدرس IP (جدا شده با کاما)"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}🖥️  Check server's public IP${NC} / ${BLUE}بررسی IP عمومی سرور${NC}"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Automatically detect and check this server's public IP"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} تشخیص و بررسی خودکار IP عمومی این سرور"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}📄 Load from file${NC} / ${BLUE}بارگذاری از فایل${NC}"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Load IP addresses from a text file (one per line)"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} بارگذاری آدرس‌های IP از فایل متنی (هر خط یک IP)"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}⬅️  Back to main menu${NC} / ${BLUE}بازگشت به منوی اصلی${NC}"
-    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
-    echo
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -ne "${BLUE}👉 Select input method (1-4): ${NC}"
+    # Use fzf for input method selection
+    local menu_options=(
+        "1) ✍️  Enter IP address(es) manually / وارد کردن دستی آدرس IP|Type one or more IP addresses (comma-separated)|1"
+        "2) 🖥️  Check server's public IP / بررسی IP عمومی سرور|Automatically detect and check this server's public IP|2"
+        "3) 📄 Load from file / بارگذاری از فایل|Load IP addresses from a text file (one per line)|3"
+        "4) ⬅️  Back to main menu / بازگشت به منوی اصلی|Return to main menu|4"
+    )
     
-    local input_method=""
-    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-        exec 3< /dev/tty
-        IFS= read -r input_method <&3
-        exec 3<&-
-    elif [[ -t 0 ]]; then
-        IFS= read -r input_method
-    else
-        exec 3< /dev/tty 2>/dev/null
-        if [[ $? -eq 0 ]]; then
-            IFS= read -r input_method <&3
-            exec 3<&-
-        else
-            IFS= read -r input_method || input_method=""
-        fi
+    local selected
+    selected=$(printf '%s\n' "${menu_options[@]}" | \
+        fzf --height=12 --reverse --border --header="📋 IP Check Options / گزینه‌های بررسی IP" \
+        --prompt="👉 Select input method > " \
+        --pointer="▶" \
+        --preview="echo {} | cut -d'|' -f2" \
+        --preview-window=right:40%:wrap \
+        --delimiter='|' \
+        --with-nth=1 || echo "")
+    
+    if [[ -z "$selected" ]]; then
+        IPCHECK_MENU_RESULT="INPUT:CANCEL"
+        return
     fi
-    input_method=$(printf '%s' "$input_method" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    local input_method
+    input_method=$(echo "$selected" | cut -d'|' -f3)
     
     local ip_input=""
     local result=""
     case "$input_method" in
         1)
-            echo
-            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -ne "${BLUE}📝 Enter IP address(es) (comma-separated): ${NC}"
-            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                exec 3< /dev/tty
-                IFS= read -r ip_input <&3
-                exec 3<&-
-            else
-                IFS= read -r ip_input
+            # Use fzf to prompt for IP input (or fallback to read)
+            ip_input=$(echo "" | fzf --print-query --height=3 --reverse --border \
+                --header="📝 Enter IP address(es) (comma-separated) / وارد کردن آدرس IP" \
+                --prompt="IP > " 2>/dev/null | head -1)
+            
+            if [[ -z "$ip_input" ]]; then
+                # Fallback to regular read if fzf doesn't work
+                echo -ne "${BLUE}📝 Enter IP address(es) (comma-separated): ${NC}"
+                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                    exec 3< /dev/tty
+                    IFS= read -r ip_input <&3
+                    exec 3<&-
+                else
+                    IFS= read -r ip_input
+                fi
             fi
+            
             ip_input=$(printf '%s' "$ip_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [[ -z "$ip_input" ]]; then
                 echo -e "${YELLOW}⚠ No IP address entered. Cancelling...${NC}"
@@ -99,16 +89,27 @@ show_ip_check_menu() {
             fi
             ;;
         3)
-            echo
-            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -ne "${BLUE}📁 Enter file path: ${NC}"
-            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                exec 3< /dev/tty
-                IFS= read -r file_path <&3
-                exec 3<&-
-            else
-                IFS= read -r file_path
+            # Use fzf to select file (with file browser)
+            local file_path
+            file_path=$(find . -type f 2>/dev/null | head -50 | \
+                fzf --height=15 --reverse --border \
+                --header="📁 Select file / انتخاب فایل" \
+                --prompt="File > " \
+                --preview="head -20 {} 2>/dev/null || echo 'Cannot preview'" \
+                --preview-window=right:50%:wrap 2>/dev/null || echo "")
+            
+            if [[ -z "$file_path" ]]; then
+                # Fallback to regular read
+                echo -ne "${BLUE}📁 Enter file path: ${NC}"
+                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                    exec 3< /dev/tty
+                    IFS= read -r file_path <&3
+                    exec 3<&-
+                else
+                    IFS= read -r file_path
+                fi
             fi
+            
             file_path=$(printf '%s' "$file_path" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [[ -z "$file_path" ]]; then
                 echo -e "${YELLOW}⚠ No file path entered. Cancelling...${NC}"
@@ -121,8 +122,6 @@ show_ip_check_menu() {
             result="INPUT:CANCEL"
             ;;
         *)
-            echo -e "${YELLOW}⚠ Invalid option.${NC}"
-            sleep 1
             result="INPUT:CANCEL"
             ;;
     esac
@@ -154,295 +153,93 @@ show_check_options_menu() {
         has_ht_key=1
     fi
     
-    # Define all options with their flags, descriptions, and API key requirements
-    local -a options=(
-        "q:IPQualityScore:Basic Checks:$has_ipqs_key"
-        "a:AbuseIPDB:Basic Checks:$has_abuseipdb_key"
-        "s:Scamalytics:Basic Checks:1"
-        "r:RIPE Atlas:Basic Checks:$has_ripe_key"
-        "c:Check-Host:Basic Checks:1"
-        "h:HostTracker:Basic Checks:$has_ht_key"
-        "g:IP Quality Score:Advanced Features:1"
-        "d:CDN Detection:Advanced Features:1"
-        "t:Routing Health:Advanced Features:1"
-        "p:Port Scan:Advanced Features:1"
-        "R:Reality Test:Advanced Features:1"
-        "u:Usage History:Advanced Features:1"
-        "n:Suggestions:Advanced Features:1"
-        "j:JSON Output:Output Options:1"
-        "l:Enable Logging:Output Options:1"
-    )
+    # Build fzf menu options with sections and availability
+    local -a menu_items=()
     
-    local total_options=${#options[@]}
-    local current_index=0
-    local -a selected=()
-    
-    # Initialize selected array (0 = not selected, 1 = selected)
-    for ((i=0; i<total_options; i++)); do
-        selected[$i]=0
-    done
-    
-    # Enable raw mode for arrow keys but keep Enter working
-    local stty_save=""
-    restore_terminal() {
-        if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
-            stty "$stty_save" < /dev/tty 2>/dev/null || true
-            trap - EXIT INT TERM
-        fi
-    }
-    
-    if [[ -c /dev/tty ]]; then
-        stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
-        if [[ -n "$stty_save" ]]; then
-            # Set raw mode for reading single characters including arrow keys
-            # min 1 allows Enter (\n) to be read properly
-            stty -echo -icanon min 1 time 0 < /dev/tty 2>/dev/null || true
-            trap restore_terminal EXIT INT TERM
-        fi
+    # Basic Checks section
+    menu_items+=("━━━ Basic Checks / بررسی‌های پایه ━━━")
+    if [[ $has_ipqs_key -eq 1 ]]; then
+        menu_items+=("q|IPQualityScore|Basic Checks|✓")
+    else
+        menu_items+=("q|IPQualityScore (API key required)|Basic Checks|✗")
+    fi
+    if [[ $has_abuseipdb_key -eq 1 ]]; then
+        menu_items+=("a|AbuseIPDB|Basic Checks|✓")
+    else
+        menu_items+=("a|AbuseIPDB (API key required)|Basic Checks|✗")
+    fi
+    menu_items+=("s|Scamalytics|Basic Checks|✓")
+    if [[ $has_ripe_key -eq 1 ]]; then
+        menu_items+=("r|RIPE Atlas|Basic Checks|✓")
+    else
+        menu_items+=("r|RIPE Atlas (API key required)|Basic Checks|✗")
+    fi
+    menu_items+=("c|Check-Host|Basic Checks|✓")
+    if [[ $has_ht_key -eq 1 ]]; then
+        menu_items+=("h|HostTracker|Basic Checks|✓")
+    else
+        menu_items+=("h|HostTracker (API key required)|Basic Checks|✗")
     fi
     
-    # Function to display menu
-    display_checkbox_menu() {
-        clear
-        
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-        
-        local current_section=""
-        local option_num=0
-        
-        # Display options grouped by section
-        for ((i=0; i<total_options; i++)); do
-            local option="${options[$i]}"
-            local flag="${option%%:*}"
-            local temp="${option#*:}"
-            local desc="${temp%%:*}"
-            temp="${temp#*:}"
-            local section="${temp%%:*}"
-            local has_key="${temp##*:}"
-            
-            # Print section header when section changes
-            if [[ "$section" != "$current_section" ]]; then
-                if [[ -n "$current_section" ]]; then
-                    echo
-                fi
-                case "$section" in
-                    "Basic Checks")
-                        echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
-                        ;;
-                    "Advanced Features")
-                        echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
-                        ;;
-                    "Output Options")
-                        echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
-                        ;;
-                esac
-                current_section="$section"
-            fi
-            
-            # Display checkbox and option
-            local checkbox=""
-            local color=""
-            local disabled=""
-            
-            # Check if option is disabled (no API key)
-            if [[ "$has_key" == "0" ]]; then
-                disabled=" (API key required)"
-                # Use dim/gray color for disabled items
-                if [[ $i -eq $current_index ]]; then
-                    # Current item - highlight but grayed out
-                    checkbox="${YELLOW}[ ]${NC}"
-                    color="${YELLOW}"
-                    echo -e "  ${color}▶${NC} ${YELLOW}[ ]${NC} ${YELLOW}$flag${NC} - ${YELLOW}$desc${NC}${YELLOW}$disabled${NC}"
-                else
-                    # Other items - grayed out (dimmed)
-                    checkbox="${NC}[ ]${NC}"
-                    color="${NC}"
-                    # Use tput dim if available, otherwise just normal color
-                    if command -v tput >/dev/null 2>&1; then
-                        local dim=$(tput dim 2>/dev/null || echo "")
-                        local nodim=$(tput sgr0 2>/dev/null || echo "")
-                        echo -e "    ${dim}$checkbox${nodim} ${dim}$flag${nodim} - ${dim}$desc${nodim}${YELLOW}$disabled${NC}"
-                    else
-                        echo -e "    $checkbox $flag - $desc${YELLOW}$disabled${NC}"
-                    fi
-                fi
-            else
-                # Enabled option
-                if [[ $i -eq $current_index ]]; then
-                    # Current item - highlight
-                    if [[ ${selected[$i]} -eq 1 ]]; then
-                        checkbox="${GREEN}[✓]${NC}"
-                        color="${GREEN}"
-                    else
-                        checkbox="${YELLOW}[ ]${NC}"
-                        color="${YELLOW}"
-                    fi
-                    echo -e "  ${color}▶${NC} $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
-                else
-                    # Other items
-                    if [[ ${selected[$i]} -eq 1 ]]; then
-                        checkbox="${GREEN}[✓]${NC}"
-                        color="${GREEN}"
-                    else
-                        checkbox="${NC}[ ]${NC}"
-                        color="${NC}"
-                    fi
-                    echo -e "    $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
-                fi
-            fi
-        done
-        
-        echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${YELLOW}Instructions / راهنما:${NC}"
-        echo -e "  ${BLUE}↑${NC}/${BLUE}↓${NC} - Move up/down / حرکت بالا/پایین"
-        echo -e "  ${BLUE}Space${NC} - Toggle selection / تغییر انتخاب"
-        echo -e "  ${BLUE}Enter${NC} - Confirm selection / تایید انتخاب"
-        echo -e "  ${BLUE}q${NC} or ${BLUE}ESC${NC} - Cancel / لغو"
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    }
+    # Advanced Features section
+    menu_items+=("━━━ Advanced Features / ویژگی‌های پیشرفته ━━━")
+    menu_items+=("g|IP Quality Score|Advanced Features|✓")
+    menu_items+=("d|CDN Detection|Advanced Features|✓")
+    menu_items+=("t|Routing Health|Advanced Features|✓")
+    menu_items+=("p|Port Scan|Advanced Features|✓")
+    menu_items+=("R|Reality Test|Advanced Features|✓")
+    menu_items+=("u|Usage History|Advanced Features|✓")
+    menu_items+=("n|Suggestions|Advanced Features|✓")
     
-    # Display menu once before loop
-    display_checkbox_menu
+    # Output Options section
+    menu_items+=("━━━ Output Options / گزینه‌های خروجی ━━━")
+    menu_items+=("j|JSON Output|Output Options|✓")
+    menu_items+=("l|Enable Logging|Output Options|✓")
     
-    # Main loop
-    while true; do
-        # Read single character with raw mode
-        local key=""
-        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            # Read one character - arrow keys will be escape sequences, Enter will be \n
-            key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
-        else
-            # Fallback: read from stdin
-            IFS= read -rs -n1 key 2>/dev/null || key=""
-        fi
-        
-        # Skip if no key was read
-        if [[ -z "$key" ]]; then
+    # Use fzf with multi-select
+    local selected_items
+    selected_items=$(printf '%s\n' "${menu_items[@]}" | \
+        fzf --multi --height=20 --reverse --border \
+        --header="Select Check Options / انتخاب گزینه‌های بررسی (Space to select, Tab to toggle, Enter to confirm)" \
+        --prompt="Options > " \
+        --pointer="▶" \
+        --marker="✓ " \
+        --preview="echo {} | cut -d'|' -f2" \
+        --preview-window=right:40%:wrap \
+        --delimiter='|' \
+        --with-nth=2 \
+        --bind="tab:toggle+down" \
+        --bind="btab:toggle+up" 2>/dev/null || echo "")
+    
+    if [[ -z "$selected_items" ]]; then
+        IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+        return
+    fi
+    
+    # Extract flags from selected items (skip section headers)
+    local selected_flags=""
+    while IFS= read -r line; do
+        # Skip section headers (lines starting with ━━━)
+        if [[ "$line" =~ ^━━━ ]]; then
             continue
         fi
-        
-        # Handle escape sequences (arrow keys and ESC)
-        if [[ "$key" == $'\x1b' ]]; then
-            # Read next character to determine if it's arrow key or ESC
-            local key2=""
-            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                key2=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
-            else
-                IFS= read -rs -n1 key2 2>/dev/null || key2=""
+        # Process only lines with flag format (single letter/number followed by |)
+        if [[ "$line" =~ ^[a-zA-Z0-9]+\| ]]; then
+            local flag
+            flag=$(echo "$line" | cut -d'|' -f1)
+            # Check if option is available (not disabled)
+            local available
+            available=$(echo "$line" | cut -d'|' -f4)
+            if [[ "$available" == "✓" ]]; then
+                selected_flags+="$flag"
             fi
-            
-            if [[ "$key2" == "[" ]]; then
-                # Arrow key sequence - read third character
-                local key3=""
-                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                    key3=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
-                else
-                    IFS= read -rs -n1 key3 2>/dev/null || key3=""
-                fi
-                
-                case "$key3" in
-                    "A") # Up arrow
-                        if [[ $current_index -gt 0 ]]; then
-                            ((current_index--))
-                        fi
-                        display_checkbox_menu
-                        ;;
-                    "B") # Down arrow
-                        if [[ $current_index -lt $((total_options - 1)) ]]; then
-                            ((current_index++))
-                        fi
-                        display_checkbox_menu
-                        ;;
-                esac
-            else
-                # ESC key (standalone)
-                restore_terminal
-                trap - EXIT INT TERM
-                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-                return
-            fi
-        elif [[ "$key" == " " ]]; then
-            # Space - toggle selection (only if option is enabled)
-            local option="${options[$current_index]}"
-            local temp="${option#*:}"
-            temp="${temp#*:}"
-            local has_key="${temp##*:}"
-            
-            if [[ "$has_key" == "1" ]]; then
-                if [[ ${selected[$current_index]} -eq 0 ]]; then
-                    selected[$current_index]=1
-                else
-                    selected[$current_index]=0
-                fi
-                # Refresh menu to show updated selection
-                display_checkbox_menu
-            fi
-        elif [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
-            # Enter - confirm
-            # Build selected flags string first
-            local selected_flags=""
-            for ((i=0; i<total_options; i++)); do
-                if [[ ${selected[$i]} -eq 1 ]]; then
-                    local flag="${options[$i]%%:*}"
-                    selected_flags+="$flag"
-                fi
-            done
-            
-            # If nothing selected, show message and continue
-            if [[ -z "$selected_flags" ]]; then
-                # Show message briefly
-                clear
-                echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "${YELLOW}⚠ Please select at least one option / لطفاً حداقل یک گزینه انتخاب کنید${NC}"
-                echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                sleep 1.5 2>/dev/null || sleep 1
-                display_checkbox_menu
-                continue
-            fi
-            
-            # Show confirmation with checkmark
-            clear
-            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -e "${GREEN}✓${NC} ${BLUE}Selected options confirmed / گزینه‌های انتخاب شده تایید شد${NC}"
-            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            sleep 0.8 2>/dev/null || sleep 0.5
-            
-            # Set result first, then restore terminal
-            IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
-            restore_terminal
-            trap - EXIT INT TERM
-            return
-        elif [[ "$key" == "q" ]] || [[ "$key" == "Q" ]]; then
-            # q - cancel
-            restore_terminal
-            trap - EXIT INT TERM
-            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-            return
         fi
-    done
+    done <<< "$selected_items"
     
-    # This should not be reached, but just in case
-    # Restore terminal settings
-    restore_terminal
-    trap - EXIT INT TERM
-    
-    # Build selected flags string
-    local selected_flags=""
-    for ((i=0; i<total_options; i++)); do
-        if [[ ${selected[$i]} -eq 1 ]]; then
-            local flag="${options[$i]%%:*}"
-            selected_flags+="$flag"
-        fi
-    done
-    
-    # If nothing selected, cancel
     if [[ -z "$selected_flags" ]]; then
         IPCHECK_MENU_RESULT="FLAGS:CANCEL"
         return
     fi
     
-    # Set result before returning
     IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
 }

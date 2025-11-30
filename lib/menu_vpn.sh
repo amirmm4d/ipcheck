@@ -2,9 +2,6 @@
 
 show_vpn_menu() {
     show_logo
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}🔧 VPN Installation / نصب VPN${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
     if [[ $EUID -ne 0 ]]; then
         echo -e "${RED}╔══════════════════════════════════════════════════════════════╗${NC}"
@@ -26,56 +23,33 @@ show_vpn_menu() {
         return
     fi
     
-    echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}│${NC}  ${BLUE}Select VPN to install / انتخاب VPN برای نصب:${NC}"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}1)${NC} ${BLUE}🚀 Sing-box${NC} (Recommended for Reality / توصیه شده برای Reality)"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Modern, lightweight, supports Reality protocol"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} مدرن، سبک، پشتیبانی از پروتکل Reality"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}2)${NC} ${BLUE}⚡ Xray${NC} (Xray-core)"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} High-performance proxy platform"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پلتفرم پروکسی با عملکرد بالا"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}3)${NC} ${BLUE}🌐 V2Ray${NC} (V2Fly)"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Popular proxy platform with extensive features"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پلتفرم پروکسی محبوب با ویژگی‌های گسترده"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}4)${NC} ${BLUE}🔒 Shadowsocks-libev${NC}"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Lightweight SOCKS5 proxy"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پروکسی SOCKS5 سبک"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}5)${NC} ${BLUE}🛡️  OpenVPN${NC}"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Industry-standard VPN protocol"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} پروتکل VPN استاندارد صنعتی"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}6)${NC} ${BLUE}🔐 OpenConnect${NC} (Cisco AnyConnect compatible)"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} Compatible with Cisco AnyConnect VPN"
-    echo -e "${YELLOW}│${NC}     ${YELLOW}→${NC} سازگار با VPN Cisco AnyConnect"
-    echo -e "${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  ${GREEN}7)${NC} ${BLUE}⬅️  Back to main menu${NC} / ${BLUE}بازگشت به منوی اصلی${NC}"
-    echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────────┘${NC}"
-    echo
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -ne "${BLUE}👉 Select option (1-7): ${NC}"
+    # Use fzf for VPN selection
+    local menu_options=(
+        "1) 🚀 Sing-box|Modern, lightweight, supports Reality protocol (Recommended for Reality)|1"
+        "2) ⚡ Xray|High-performance proxy platform (Xray-core)|2"
+        "3) 🌐 V2Ray|Popular proxy platform with extensive features (V2Fly)|3"
+        "4) 🔒 Shadowsocks-libev|Lightweight SOCKS5 proxy|4"
+        "5) 🛡️  OpenVPN|Industry-standard VPN protocol|5"
+        "6) 🔐 OpenConnect|Compatible with Cisco AnyConnect VPN|6"
+        "7) ⬅️  Back to main menu|Return to main menu|7"
+    )
     
-    local vpn_choice=""
-    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-        exec 3< /dev/tty
-        IFS= read -r vpn_choice <&3
-        exec 3<&-
-    elif [[ -t 0 ]]; then
-        IFS= read -r vpn_choice
-    else
-        exec 3< /dev/tty 2>/dev/null
-        if [[ $? -eq 0 ]]; then
-            IFS= read -r vpn_choice <&3
-            exec 3<&-
-        else
-            IFS= read -r vpn_choice || vpn_choice=""
-        fi
+    local selected
+    selected=$(printf '%s\n' "${menu_options[@]}" | \
+        fzf --height=15 --reverse --border --header="🔧 VPN Installation / نصب VPN" \
+        --prompt="👉 Select VPN > " \
+        --pointer="▶" \
+        --preview="echo {} | cut -d'|' -f2" \
+        --preview-window=right:40%:wrap \
+        --delimiter='|' \
+        --with-nth=1 || echo "")
+    
+    if [[ -z "$selected" ]]; then
+        return
     fi
-    vpn_choice=$(printf '%s' "$vpn_choice" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    local vpn_choice
+    vpn_choice=$(echo "$selected" | cut -d'|' -f3)
     
     case "$vpn_choice" in
         1) install_singbox ;;

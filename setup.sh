@@ -2,13 +2,13 @@
 #
 # setup.sh - v8: Selective and scalable installer for the tool suite.
 # Installs all or selected tools from the 'tools/' directory or root.
-# Supports IPCheck Suite v2.2.25
+# Supports IPCheck Suite v2.2.26
 
 set -eo pipefail
 
 # --- Version ---
 # IPCheck Suite version - update this when releasing new versions
-IPCHECK_SUITE_VERSION="2.2.25"
+IPCHECK_SUITE_VERSION="2.2.26"
 
 # --- Configuration & Colors ---
 # Handle case when script is piped from curl (BASH_SOURCE may be unbound)
@@ -77,7 +77,7 @@ installation_rollback() {
 check_dependencies() {
     echo -e "${BLUE}--- STEP 1: Checking Dependencies ---${NC}"
     local missing_deps=()
-    local required_cmds=("curl" "jq")
+    local required_cmds=("curl" "jq" "fzf")
 
     for cmd in "${required_cmds[@]}"; do
         if ! command -v "$cmd" &>/dev/null; then
@@ -131,10 +131,51 @@ check_dependencies() {
     case "${os_id}" in
     ubuntu | debian | mint)
         echo -e "${BLUE}Installing ${missing_deps[*]} using apt-get...${NC}"
-        apt-get update -qq && apt-get install -y "${missing_deps[@]}" || {
-            echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
-            exit 1
-        }
+        # For fzf, try to install from package, if not available, install from GitHub
+        local deps_to_install=()
+        for dep in "${missing_deps[@]}"; do
+            if [[ "$dep" == "fzf" ]]; then
+                # Try apt first, if fails, install from GitHub
+                if ! apt-get install -y fzf 2>/dev/null; then
+                    echo -e "${YELLOW}Installing fzf from GitHub...${NC}"
+                    local fzf_dir
+                    fzf_dir=$(mktemp -d)
+                    # Detect architecture
+                    local arch
+                    arch=$(uname -m)
+                    case "$arch" in
+                        x86_64) arch="amd64" ;;
+                        aarch64|arm64) arch="arm64" ;;
+                        armv7l|armv6l) arch="arm" ;;
+                        *) arch="amd64" ;;
+                    esac
+                    # Download fzf binary - get latest version
+                    local fzf_version
+                    if command -v jq &>/dev/null; then
+                        fzf_version=$(curl -fsSL https://api.github.com/repos/junegunn/fzf/releases/latest 2>/dev/null | jq -r '.tag_name' 2>/dev/null | sed 's/^v//' || echo "0.50.0")
+                    else
+                        fzf_version="0.50.0"
+                    fi
+                    if curl -fsSL "https://github.com/junegunn/fzf/releases/latest/download/fzf-${fzf_version}-linux_${arch}.tar.gz" -o "$fzf_dir/fzf.tar.gz" 2>/dev/null || \
+                       curl -fsSL "https://github.com/junegunn/fzf/releases/download/${fzf_version}/fzf-${fzf_version}-linux_${arch}.tar.gz" -o "$fzf_dir/fzf.tar.gz" 2>/dev/null; then
+                        tar -xzf "$fzf_dir/fzf.tar.gz" -C "$fzf_dir" 2>/dev/null
+                        install -m 755 "$fzf_dir/fzf" /usr/local/bin/fzf 2>/dev/null || true
+                        rm -rf "$fzf_dir"
+                    else
+                        # Try alternative method - use install script
+                        curl -fsSL https://raw.githubusercontent.com/junegunn/fzf/master/install | bash -s -- --bin 2>/dev/null || true
+                    fi
+                fi
+            else
+                deps_to_install+=("$dep")
+            fi
+        done
+        if [[ ${#deps_to_install[@]} -gt 0 ]]; then
+            apt-get update -qq && apt-get install -y "${deps_to_install[@]}" || {
+                echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${deps_to_install[*]}${NC}"
+                exit 1
+            }
+        fi
         ;;
     fedora | centos | rhel)
         echo -e "${BLUE}Installing ${missing_deps[*]} using package manager...${NC}"
@@ -162,7 +203,8 @@ check_dependencies() {
         ;;
     *)
         echo -e "${RED}❌ Unsupported OS (${os_id:-unknown}). Please install manually: ${missing_deps[*]}${NC}"
-        echo -e "${YELLOW}You can install jq manually using your package manager.${NC}"
+        echo -e "${YELLOW}You can install dependencies manually using your package manager.${NC}"
+        echo -e "${YELLOW}For fzf, you can install from: https://github.com/junegunn/fzf${NC}"
         exit 1
         ;;
     esac
