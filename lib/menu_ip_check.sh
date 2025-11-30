@@ -138,7 +138,8 @@ show_ip_check_menu() {
 }
 
 show_check_options_menu() {
-    local selected_flags=""
+    clear
+    show_logo
     
     # Define all options with their flags and descriptions
     local -a options=(
@@ -159,312 +160,119 @@ show_check_options_menu() {
         "l:Enable Logging:Output Options"
     )
     
-    local current_index=0
-    local total_options=${#options[@]}
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
-    # Store terminal settings for cleanup (use global variables for trap access)
-    declare -g _MENU_STTY_SAVED=""
-    declare -g _MENU_TERMINAL_CONFIGURED="false"
+    local current_section=""
+    local option_num=0
     
-    # Check if we have an interactive terminal
-    if [[ ! -t 0 ]] && [[ ! -c /dev/tty ]]; then
-        # Non-interactive - use simple menu
-        echo -e "${YELLOW}⚠️  Non-interactive terminal detected. Using simple selection menu.${NC}"
-        echo
-        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-        echo -e "${YELLOW}Enter flags to select (e.g., qagdt) or press Enter to skip:${NC}"
-        echo -ne "${BLUE}Flags: ${NC}"
-        local simple_flags=""
-        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            exec 3< /dev/tty
-            IFS= read -r simple_flags <&3
-            exec 3<&-
-        else
-            IFS= read -r simple_flags || simple_flags=""
+    # Display options grouped by section
+    for option in "${options[@]}"; do
+        local flag="${option%%:*}"
+        local desc="${option#*:}"
+        desc="${desc%%:*}"
+        local section="${option##*:}"
+        
+        # Print section header when section changes
+        if [[ "$section" != "$current_section" ]]; then
+            if [[ -n "$current_section" ]]; then
+                echo
+            fi
+            case "$section" in
+                "Basic Checks")
+                    echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
+                    ;;
+                "Advanced Features")
+                    echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
+                    ;;
+                "Output Options")
+                    echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
+                    ;;
+            esac
+            current_section="$section"
         fi
-        simple_flags=$(printf '%s' "$simple_flags" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        IPCHECK_MENU_RESULT="FLAGS:$simple_flags"
+        
+        ((option_num++))
+        echo -e "  ${GREEN}$option_num)${NC} $flag - $desc"
+    done
+    
+    echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}Instructions:${NC}"
+    echo -e "  • Enter option numbers separated by commas (e.g., 1,3,7)"
+    echo -e "  • Enter 'all' to select all options"
+    echo -e "  • Enter 'basic' to select all basic checks"
+    echo -e "  • Enter 'advanced' to select all advanced features"
+    echo -e "  • Enter flags directly (e.g., qagdt)"
+    echo -e "  • Press Enter without input to skip (will run all basic checks)"
+    echo -e "  • Enter 'q' or 'cancel' to go back"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    echo -ne "${BLUE}👉 Your selection: ${NC}"
+    
+    local user_input=""
+    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+        exec 3< /dev/tty
+        IFS= read -r user_input <&3
+        exec 3<&-
+    elif [[ -t 0 ]]; then
+        IFS= read -r user_input
+    else
+        IFS= read -r user_input || user_input=""
+    fi
+    
+    # Clean input
+    user_input=$(printf '%s' "$user_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
+    
+    # Handle special cases
+    if [[ -z "$user_input" ]]; then
+        # Empty input - cancel
+        IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+        return
+    elif [[ "$user_input" == "q" ]] || [[ "$user_input" == "cancel" ]]; then
+        IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+        return
+    elif [[ "$user_input" == "all" ]]; then
+        IPCHECK_MENU_RESULT="FLAGS:qasrchgdtpRunjl"
+        return
+    elif [[ "$user_input" == "basic" ]]; then
+        IPCHECK_MENU_RESULT="FLAGS:qasrch"
+        return
+    elif [[ "$user_input" == "advanced" ]]; then
+        IPCHECK_MENU_RESULT="FLAGS:gdtpRun"
         return
     fi
     
-    # Setup terminal for interactive mode (only if we can do it safely)
-    if command -v stty >/dev/null 2>&1 && [[ -t 0 ]]; then
-        set +e  # Temporarily disable exit on error for stty
-        _MENU_STTY_SAVED=$(stty -g 2>/dev/null || echo "")
-        if [[ -n "$_MENU_STTY_SAVED" ]] && [[ "$_MENU_STTY_SAVED" != "invalid" ]]; then
-            # Configure terminal for character reading - only if it works
-            if stty -echo -icanon min 1 time 0 2>/dev/null; then
-                _MENU_TERMINAL_CONFIGURED="true"
-            else
-                _MENU_STTY_SAVED=""
-            fi
-        else
-            _MENU_STTY_SAVED=""
-        fi
-        set -e  # Re-enable exit on error
-    fi
+    # Check if input contains numbers (option selection) or letters (flag selection)
+    local selected_flags=""
     
-    # If terminal configuration failed, use simple menu instead
-    if [[ "${_MENU_TERMINAL_CONFIGURED:-false}" != "true" ]]; then
-        echo -e "${YELLOW}Note: Using simple menu mode (arrow keys disabled)${NC}"
-        echo
-        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-        local i=0
-        for option in "${options[@]}"; do
-            local flag="${option%%:*}"
-            local desc="${option#*:}"
-            desc="${desc%%:*}"
-            ((i++))
-            echo -e "  ${GREEN}$i)${NC} $flag - $desc"
+    if [[ "$user_input" =~ [0-9] ]]; then
+        # User entered numbers - parse them
+        IFS=',' read -ra selections <<< "$user_input"
+        for sel in "${selections[@]}"; do
+            sel=$(echo "$sel" | tr -d '[:space:]')
+            if [[ "$sel" =~ ^[0-9]+$ ]] && [[ $sel -ge 1 ]] && [[ $sel -le ${#options[@]} ]]; then
+                local idx=$((sel - 1))
+                local flag="${options[$idx]%%:*}"
+                if [[ "$selected_flags" != *"$flag"* ]]; then
+                    selected_flags+="$flag"
+                fi
+            fi
         done
-        echo
-        echo -e "${YELLOW}Enter option numbers (comma-separated) or 'all' for all options, or 'q' to cancel:${NC}"
-        echo -ne "${BLUE}Selection: ${NC}"
-        local simple_input=""
-        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            exec 3< /dev/tty
-            IFS= read -r simple_input <&3
-            exec 3<&-
-        else
-            IFS= read -r simple_input || simple_input=""
-        fi
-        simple_input=$(printf '%s' "$simple_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
-        if [[ "$simple_input" == "q" ]] || [[ "$simple_input" == "cancel" ]]; then
-            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-            return
-        elif [[ "$simple_input" == "all" ]]; then
-            IPCHECK_MENU_RESULT="FLAGS:qasrchgdtpRunjl"
-            return
-        else
-            local selected_flags_simple=""
-            IFS=',' read -ra selections <<< "$simple_input"
-            for sel in "${selections[@]}"; do
-                sel=$(echo "$sel" | tr -d '[:space:]')
-                if [[ "$sel" =~ ^[0-9]+$ ]] && [[ $sel -ge 1 ]] && [[ $sel -le ${#options[@]} ]]; then
-                    local idx=$((sel - 1))
-                    local flag="${options[$idx]%%:*}"
-                    selected_flags_simple+="$flag"
+    else
+        # User entered flags directly (e.g., "qagdt")
+        # Validate and extract valid flags
+        for ((i=0; i<${#user_input}; i++)); do
+            local char="${user_input:$i:1}"
+            # Check if this character is a valid flag
+            for option in "${options[@]}"; do
+                local flag="${option%%:*}"
+                if [[ "$flag" == "$char" ]] && [[ "$selected_flags" != *"$flag"* ]]; then
+                    selected_flags+="$flag"
+                    break
                 fi
             done
-            IPCHECK_MENU_RESULT="FLAGS:$selected_flags_simple"
-            return
-        fi
+        done
     fi
     
-    # Cleanup function (can access global variables, safe for set -e)
-    _menu_cleanup_terminal() {
-        set +e  # Disable exit on error for cleanup
-        if [[ "${_MENU_TERMINAL_CONFIGURED:-false}" == "true" ]] && [[ -n "${_MENU_STTY_SAVED:-}" ]] && command -v stty >/dev/null 2>&1; then
-            stty "${_MENU_STTY_SAVED}" 2>/dev/null || true
-        fi
-        # Ensure echo is always restored
-        stty echo 2>/dev/null || true
-        set -e  # Re-enable exit on error
-    }
-    
-    # Set trap to cleanup on exit
-    trap '_menu_cleanup_terminal' EXIT INT TERM HUP
-    
-    # Read a single character from terminal (with error handling for set -e)
-    read_char() {
-        set +e  # Temporarily disable exit on error
-        local char=""
-        
-        # Read from /dev/tty if available, otherwise stdin
-        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            IFS= read -rs -n1 char < /dev/tty 2>/dev/null
-            local read_status=$?
-            if [[ $read_status -ne 0 ]]; then
-                char=""
-            fi
-        else
-            IFS= read -rs -n1 char 2>/dev/null
-            local read_status=$?
-            if [[ $read_status -ne 0 ]]; then
-                char=""
-            fi
-        fi
-        
-        set -e  # Re-enable exit on error
-        printf '%s' "${char:-}"
-    }
-    
-    while true; do
-        clear
-        show_logo
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-        
-        local current_section=""
-        local option_index=0
-        
-        for option in "${options[@]}"; do
-            local flag="${option%%:*}"
-            local desc="${option#*:}"
-            desc="${desc%%:*}"
-            local section="${option##*:}"
-            
-            # Print section header when section changes
-            if [[ "$section" != "$current_section" ]]; then
-                if [[ -n "$current_section" ]]; then
-                    echo
-                fi
-                case "$section" in
-                    "Basic Checks")
-                        echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
-                        ;;
-                    "Advanced Features")
-                        echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
-                        ;;
-                    "Output Options")
-                        echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
-                        ;;
-                esac
-                current_section="$section"
-            fi
-            
-            # Check if selected
-            local is_selected=false
-            [[ "$selected_flags" == *"$flag"* ]] && is_selected=true
-            
-            # Highlight current option
-            if [[ $option_index -eq $current_index ]]; then
-                if $is_selected; then
-                    echo -e "  ${GREEN}▶${NC} ${YELLOW}[${GREEN}✓${YELLOW}]${NC} ${GREEN}$flag${NC} - $desc"
-                else
-                    echo -e "  ${GREEN}▶${NC} ${YELLOW}[${NC} ${YELLOW}]${NC} ${GREEN}$flag${NC} - $desc"
-                fi
-            else
-                if $is_selected; then
-                    echo -e "    ${YELLOW}[${GREEN}✓${YELLOW}]${NC} $flag - $desc"
-                else
-                    echo -e "    ${YELLOW}[${NC} ${YELLOW}]${NC} $flag - $desc"
-                fi
-            fi
-            
-            ((option_index++))
-        done
-        
-        echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        if [[ -n "$selected_flags" ]]; then
-            echo -e "${BLUE}Selected flags: ${GREEN}${selected_flags}${NC}"
-        else
-            echo -e "${BLUE}Selected flags: ${YELLOW}none (will run all basic checks)${NC}"
-        fi
-        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-        echo -e "${BLUE}Instructions:${NC}"
-        echo -e "  ${YELLOW}↑${NC}/${YELLOW}↓${NC} - Navigate  ${YELLOW}Space${NC}/${YELLOW}Enter${NC} - Toggle  ${YELLOW}a${NC} - Select all  ${YELLOW}c${NC} - Clear  ${YELLOW}d${NC} - Done  ${YELLOW}q${NC}/${YELLOW}Esc${NC} - Cancel"
-        echo
-        
-        # Read key input - wait for user input (disable exit on error temporarily)
-        local key=""
-        set +e  # Temporarily disable exit on error for read
-        key=$(read_char 2>/dev/null || echo "")
-        set -e  # Re-enable exit on error
-        
-        # If no key read or empty, try again (might be a timing issue)
-        if [[ -z "$key" ]]; then
-            sleep 0.1
-            set +e
-            key=$(read_char 2>/dev/null || echo "")
-            set -e
-        fi
-        
-        # If still no key after retry, wait a bit and try once more
-        if [[ -z "$key" ]]; then
-            sleep 0.2
-            set +e
-            key=$(read_char 2>/dev/null || echo "")
-            set -e
-        fi
-        
-        # If still no key, cancel and exit gracefully
-        if [[ -z "$key" ]]; then
-            # Restore terminal before exit
-            set +e
-            _menu_cleanup_terminal
-            trap - EXIT INT TERM HUP 2>/dev/null || true
-            set -e
-            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-            return
-        fi
-        
-        # Handle escape sequences for arrow keys
-        if [[ "$key" == $'\x1b' ]]; then
-            local key2=""
-            if key2=$(read_char 2>/dev/null); then
-                if [[ "$key2" == '[' ]]; then
-                    local key3=""
-                    if key3=$(read_char 2>/dev/null); then
-                        case "$key3" in
-                            'A') # Up arrow
-                                if [[ $current_index -gt 0 ]]; then
-                                    ((current_index--))
-                                else
-                                    current_index=$((total_options - 1))
-                                fi
-                                ;;
-                            'B') # Down arrow
-                                if [[ $current_index -lt $((total_options - 1)) ]]; then
-                                    ((current_index++))
-                                else
-                                    current_index=0
-                                fi
-                                ;;
-                        esac
-                    fi
-                elif [[ -z "$key2" ]]; then
-                    # ESC key alone - exit
-                    _menu_cleanup_terminal
-                    trap - EXIT INT TERM HUP 2>/dev/null || true
-                    IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-                    return
-                fi
-            else
-                # ESC key alone - exit
-                if [[ "${_menu_terminal_configured:-false}" == "true" ]] && [[ -n "${_menu_stty_saved:-}" ]] && command -v stty >/dev/null 2>&1; then
-                    stty "$_menu_stty_saved" 2>/dev/null || true
-                fi
-                stty echo 2>/dev/null || true
-                trap - EXIT INT TERM HUP 2>/dev/null || true
-                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-                return
-            fi
-        elif [[ "$key" == $'\x20' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
-            # Space or Enter - toggle current option
-            local current_flag
-            current_flag=$(echo "${options[$current_index]}" | cut -d: -f1)
-            if [[ "$selected_flags" == *"$current_flag"* ]]; then
-                selected_flags="${selected_flags//$current_flag/}"
-            else
-                selected_flags+="$current_flag"
-            fi
-        elif [[ "$key" == 'a' ]] || [[ "$key" == 'A' ]]; then
-            # Select all
-            selected_flags="qasrchgdtpRunjl"
-        elif [[ "$key" == 'c' ]] || [[ "$key" == 'C' ]]; then
-            # Clear all
-            selected_flags=""
-        elif [[ "$key" == 'd' ]] || [[ "$key" == 'D' ]]; then
-            # Done
-            _menu_cleanup_terminal
-            trap - EXIT INT TERM HUP 2>/dev/null || true
-            IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
-            return
-        elif [[ "$key" == 'q' ]] || [[ "$key" == 'Q' ]]; then
-            # Quit
-            _menu_cleanup_terminal
-            trap - EXIT INT TERM HUP 2>/dev/null || true
-            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-            return
-        fi
-    done
-    
-    # Cleanup if loop exits unexpectedly
-    _menu_cleanup_terminal
-    trap - EXIT INT TERM HUP 2>/dev/null || true
-    IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+    IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
 }
