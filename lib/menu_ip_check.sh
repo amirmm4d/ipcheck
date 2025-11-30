@@ -138,9 +138,6 @@ show_ip_check_menu() {
 }
 
 show_check_options_menu() {
-    clear
-    show_logo
-    
     # Define all options with their flags and descriptions
     local -a options=(
         "q:IPQualityScore:Basic Checks"
@@ -160,118 +157,186 @@ show_check_options_menu() {
         "l:Enable Logging:Output Options"
     )
     
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    local total_options=${#options[@]}
+    local current_index=0
+    local -a selected=()
     
-    local current_section=""
-    local option_num=0
-    
-    # Display options grouped by section
-    for option in "${options[@]}"; do
-        local flag="${option%%:*}"
-        local desc="${option#*:}"
-        desc="${desc%%:*}"
-        local section="${option##*:}"
-        
-        # Print section header when section changes
-        if [[ "$section" != "$current_section" ]]; then
-            if [[ -n "$current_section" ]]; then
-                echo
-            fi
-            case "$section" in
-                "Basic Checks")
-                    echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
-                    ;;
-                "Advanced Features")
-                    echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
-                    ;;
-                "Output Options")
-                    echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
-                    ;;
-            esac
-            current_section="$section"
-        fi
-        
-        ((option_num++))
-        echo -e "  ${GREEN}$option_num)${NC} $flag - $desc"
+    # Initialize selected array (0 = not selected, 1 = selected)
+    for ((i=0; i<total_options; i++)); do
+        selected[$i]=0
     done
     
-    echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}Instructions:${NC}"
-    echo -e "  • Enter option numbers separated by commas (e.g., 1,3,7)"
-    echo -e "  • Enter 'all' to select all options"
-    echo -e "  • Enter 'basic' to select all basic checks"
-    echo -e "  • Enter 'advanced' to select all advanced features"
-    echo -e "  • Enter flags directly (e.g., qagdt)"
-    echo -e "  • Press Enter without input to skip (will run all basic checks)"
-    echo -e "  • Enter 'q' or 'cancel' to go back"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-    echo -ne "${BLUE}👉 Your selection: ${NC}"
-    
-    local user_input=""
-    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-        exec 3< /dev/tty
-        IFS= read -r user_input <&3
-        exec 3<&-
-    elif [[ -t 0 ]]; then
-        IFS= read -r user_input
-    else
-        IFS= read -r user_input || user_input=""
+    # Enable raw mode for reading single characters
+    local stty_save
+    if [[ -c /dev/tty ]]; then
+        stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
+        stty -echo -icanon time 0 min 0 < /dev/tty 2>/dev/null || true
     fi
     
-    # Clean input
-    user_input=$(printf '%s' "$user_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
-    
-    # Handle special cases
-    if [[ -z "$user_input" ]]; then
-        # Empty input - cancel
-        IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-        return
-    elif [[ "$user_input" == "q" ]] || [[ "$user_input" == "cancel" ]]; then
-        IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-        return
-    elif [[ "$user_input" == "all" ]]; then
-        IPCHECK_MENU_RESULT="FLAGS:qasrchgdtpRunjl"
-        return
-    elif [[ "$user_input" == "basic" ]]; then
-        IPCHECK_MENU_RESULT="FLAGS:qasrch"
-        return
-    elif [[ "$user_input" == "advanced" ]]; then
-        IPCHECK_MENU_RESULT="FLAGS:gdtpRun"
-        return
-    fi
-    
-    # Check if input contains numbers (option selection) or letters (flag selection)
-    local selected_flags=""
-    
-    if [[ "$user_input" =~ [0-9] ]]; then
-        # User entered numbers - parse them
-        IFS=',' read -ra selections <<< "$user_input"
-        for sel in "${selections[@]}"; do
-            sel=$(echo "$sel" | tr -d '[:space:]')
-            if [[ "$sel" =~ ^[0-9]+$ ]] && [[ $sel -ge 1 ]] && [[ $sel -le ${#options[@]} ]]; then
-                local idx=$((sel - 1))
-                local flag="${options[$idx]%%:*}"
-                if [[ "$selected_flags" != *"$flag"* ]]; then
-                    selected_flags+="$flag"
+    # Function to display menu
+    display_checkbox_menu() {
+        clear
+        show_logo
+        
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+        
+        local current_section=""
+        local option_num=0
+        
+        # Display options grouped by section
+        for ((i=0; i<total_options; i++)); do
+            local option="${options[$i]}"
+            local flag="${option%%:*}"
+            local desc="${option#*:}"
+            desc="${desc%%:*}"
+            local section="${option##*:}"
+            
+            # Print section header when section changes
+            if [[ "$section" != "$current_section" ]]; then
+                if [[ -n "$current_section" ]]; then
+                    echo
                 fi
+                case "$section" in
+                    "Basic Checks")
+                        echo -e "${BLUE}Basic Checks / بررسی‌های پایه:${NC}"
+                        ;;
+                    "Advanced Features")
+                        echo -e "\n${BLUE}Advanced Features / ویژگی‌های پیشرفته:${NC}"
+                        ;;
+                    "Output Options")
+                        echo -e "\n${BLUE}Output Options / گزینه‌های خروجی:${NC}"
+                        ;;
+                esac
+                current_section="$section"
+            fi
+            
+            # Display checkbox and option
+            local checkbox=""
+            local color=""
+            if [[ $i -eq $current_index ]]; then
+                # Current item - highlight
+                if [[ ${selected[$i]} -eq 1 ]]; then
+                    checkbox="${GREEN}[✓]${NC}"
+                    color="${GREEN}"
+                else
+                    checkbox="${YELLOW}[ ]${NC}"
+                    color="${YELLOW}"
+                fi
+                echo -e "  ${color}▶${NC} $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
+            else
+                # Other items
+                if [[ ${selected[$i]} -eq 1 ]]; then
+                    checkbox="${GREEN}[✓]${NC}"
+                    color="${GREEN}"
+                else
+                    checkbox="${NC}[ ]${NC}"
+                    color="${NC}"
+                fi
+                echo -e "    $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
             fi
         done
-    else
-        # User entered flags directly (e.g., "qagdt")
-        # Validate and extract valid flags
-        for ((i=0; i<${#user_input}; i++)); do
-            local char="${user_input:$i:1}"
-            # Check if this character is a valid flag
-            for option in "${options[@]}"; do
-                local flag="${option%%:*}"
-                if [[ "$flag" == "$char" ]] && [[ "$selected_flags" != *"$flag"* ]]; then
-                    selected_flags+="$flag"
-                    break
+        
+        echo -e "\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}Instructions / راهنما:${NC}"
+        echo -e "  ${BLUE}↑${NC}/${BLUE}↓${NC} - Move up/down"
+        echo -e "  ${BLUE}Space${NC} - Toggle selection"
+        echo -e "  ${BLUE}Enter${NC} - Confirm selection"
+        echo -e "  ${BLUE}q${NC} or ${BLUE}ESC${NC} - Cancel / لغو"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    }
+    
+    # Main loop
+    while true; do
+        display_checkbox_menu
+        
+        # Read single character
+        local key=""
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+        else
+            # Fallback: read from stdin
+            IFS= read -rs -n1 key || key=""
+        fi
+        
+        # Handle escape sequences (arrow keys)
+        if [[ "$key" == $'\x1b' ]]; then
+            # Read next character
+            local key2=""
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                key2=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+            else
+                IFS= read -rs -n1 key2 || key2=""
+            fi
+            
+            if [[ "$key2" == "[" ]]; then
+                # Read third character
+                local key3=""
+                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                    key3=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+                else
+                    IFS= read -rs -n1 key3 || key3=""
                 fi
-            done
-        done
+                
+                case "$key3" in
+                    "A") # Up arrow
+                        if [[ $current_index -gt 0 ]]; then
+                            ((current_index--))
+                        fi
+                        ;;
+                    "B") # Down arrow
+                        if [[ $current_index -lt $((total_options - 1)) ]]; then
+                            ((current_index++))
+                        fi
+                        ;;
+                esac
+            elif [[ -z "$key2" ]]; then
+                # ESC key (no following character)
+                if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
+                    stty "$stty_save" < /dev/tty 2>/dev/null || true
+                fi
+                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+                return
+            fi
+        elif [[ "$key" == " " ]]; then
+            # Space - toggle selection
+            if [[ ${selected[$current_index]} -eq 0 ]]; then
+                selected[$current_index]=1
+            else
+                selected[$current_index]=0
+            fi
+        elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]]; then
+            # Enter - confirm
+            break
+        elif [[ "$key" == "q" ]] || [[ "$key" == "Q" ]]; then
+            # q - cancel
+            if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
+                stty "$stty_save" < /dev/tty 2>/dev/null || true
+            fi
+            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+            return
+        fi
+    done
+    
+    # Restore terminal settings
+    if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
+        stty "$stty_save" < /dev/tty 2>/dev/null || true
+    fi
+    
+    # Build selected flags string
+    local selected_flags=""
+    for ((i=0; i<total_options; i++)); do
+        if [[ ${selected[$i]} -eq 1 ]]; then
+            local flag="${options[$i]%%:*}"
+            selected_flags+="$flag"
+        fi
+    done
+    
+    # If nothing selected, cancel
+    if [[ -z "$selected_flags" ]]; then
+        IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+        return
     fi
     
     IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
