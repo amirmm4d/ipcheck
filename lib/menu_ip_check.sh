@@ -182,30 +182,11 @@ show_check_options_menu() {
         selected[$i]=0
     done
     
-    # Enable raw mode for reading single characters
-    local stty_save=""
-    
-    # Function to restore terminal (must be defined before trap)
+    # Function to restore terminal (for cleanup if needed)
     restore_terminal() {
-        if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
-            stty "$stty_save" < /dev/tty 2>/dev/null || true
-            trap - EXIT INT TERM
-        fi
+        # No terminal settings to restore since we're not changing them
+        :
     }
-    
-    if [[ -c /dev/tty ]]; then
-        stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
-        if [[ -n "$stty_save" ]]; then
-            # Set cbreak mode - allows reading single chars including Enter
-            # cbreak: characters available immediately, but special processing still works
-            stty -echo cbreak < /dev/tty 2>/dev/null || {
-                # Fallback: use -icanon with min 1 to allow Enter to be read
-                stty -echo -icanon min 1 time 0 < /dev/tty 2>/dev/null || true
-            }
-            # Set trap to restore terminal settings on exit
-            trap restore_terminal EXIT INT TERM
-        fi
-    fi
     
     # Function to display menu
     display_checkbox_menu() {
@@ -314,14 +295,14 @@ show_check_options_menu() {
     
     # Main loop
     while true; do
-        # Read single character
+        # Read single character - use read without timeout for better Enter/ESC detection
         local key=""
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            # Read character - cbreak mode allows Enter to be read as \n or \r
-            key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+            # Read one character - Enter will be \n, ESC will be \x1b
+            IFS= read -rs -n1 key < /dev/tty 2>/dev/null || key=""
         else
             # Fallback: read from stdin
-            IFS= read -rs -t 0.1 -n1 key 2>/dev/null || key=""
+            IFS= read -rs -n1 key 2>/dev/null || key=""
         fi
         
         # Skip if no key was read
@@ -329,23 +310,24 @@ show_check_options_menu() {
             continue
         fi
         
-        # Handle escape sequences (arrow keys)
+        # Handle escape sequences (arrow keys and ESC)
         if [[ "$key" == $'\x1b' ]]; then
-            # Read next character
+            # Read next character with very short timeout to distinguish ESC from arrow keys
             local key2=""
             if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                key2=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+                # Use timeout to check if there's a following character
+                IFS= read -rs -t 0.01 -n1 key2 < /dev/tty 2>/dev/null || key2=""
             else
-                IFS= read -rs -n1 key2 || key2=""
+                IFS= read -rs -t 0.01 -n1 key2 2>/dev/null || key2=""
             fi
             
             if [[ "$key2" == "[" ]]; then
-                # Read third character
+                # Arrow key sequence - read third character
                 local key3=""
                 if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                    key3=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+                    IFS= read -rs -n1 key3 < /dev/tty 2>/dev/null || key3=""
                 else
-                    IFS= read -rs -n1 key3 || key3=""
+                    IFS= read -rs -n1 key3 2>/dev/null || key3=""
                 fi
                 
                 case "$key3" in
@@ -362,8 +344,8 @@ show_check_options_menu() {
                         display_checkbox_menu
                         ;;
                 esac
-            elif [[ -z "$key2" ]]; then
-                # ESC key (no following character)
+            else
+                # ESC key (no following character or timeout)
                 restore_terminal
                 trap - EXIT INT TERM
                 IPCHECK_MENU_RESULT="FLAGS:CANCEL"
