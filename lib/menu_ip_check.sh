@@ -182,11 +182,24 @@ show_check_options_menu() {
         selected[$i]=0
     done
     
-    # Function to restore terminal (for cleanup if needed)
+    # Enable raw mode for arrow keys but keep Enter working
+    local stty_save=""
     restore_terminal() {
-        # No terminal settings to restore since we're not changing them
-        :
+        if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
+            stty "$stty_save" < /dev/tty 2>/dev/null || true
+            trap - EXIT INT TERM
+        fi
     }
+    
+    if [[ -c /dev/tty ]]; then
+        stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
+        if [[ -n "$stty_save" ]]; then
+            # Set raw mode for reading single characters including arrow keys
+            # min 1 allows Enter (\n) to be read properly
+            stty -echo -icanon min 1 time 0 < /dev/tty 2>/dev/null || true
+            trap restore_terminal EXIT INT TERM
+        fi
+    fi
     
     # Function to display menu
     display_checkbox_menu() {
@@ -295,18 +308,78 @@ show_check_options_menu() {
     
     # Main loop
     while true; do
-        # Read input - use read to properly capture Enter and other keys
-        local input=""
+        # Read single character with raw mode
+        local key=""
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            # Read input line (Enter will be empty string or newline)
-            IFS= read -r input < /dev/tty 2>/dev/null || input=""
+            # Read one character - arrow keys will be escape sequences, Enter will be \n
+            key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
         else
             # Fallback: read from stdin
-            IFS= read -r input 2>/dev/null || input=""
+            IFS= read -rs -n1 key 2>/dev/null || key=""
         fi
         
-        # Handle Enter key (empty input or just newline)
-        if [[ -z "$input" ]] || [[ "$input" == $'\n' ]] || [[ "$input" == $'\r' ]]; then
+        # Skip if no key was read
+        if [[ -z "$key" ]]; then
+            continue
+        fi
+        
+        # Handle escape sequences (arrow keys and ESC)
+        if [[ "$key" == $'\x1b' ]]; then
+            # Read next character to determine if it's arrow key or ESC
+            local key2=""
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                key2=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+            else
+                IFS= read -rs -n1 key2 2>/dev/null || key2=""
+            fi
+            
+            if [[ "$key2" == "[" ]]; then
+                # Arrow key sequence - read third character
+                local key3=""
+                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                    key3=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
+                else
+                    IFS= read -rs -n1 key3 2>/dev/null || key3=""
+                fi
+                
+                case "$key3" in
+                    "A") # Up arrow
+                        if [[ $current_index -gt 0 ]]; then
+                            ((current_index--))
+                        fi
+                        display_checkbox_menu
+                        ;;
+                    "B") # Down arrow
+                        if [[ $current_index -lt $((total_options - 1)) ]]; then
+                            ((current_index++))
+                        fi
+                        display_checkbox_menu
+                        ;;
+                esac
+            else
+                # ESC key (standalone)
+                restore_terminal
+                trap - EXIT INT TERM
+                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+                return
+            fi
+        elif [[ "$key" == " " ]]; then
+            # Space - toggle selection (only if option is enabled)
+            local option="${options[$current_index]}"
+            local temp="${option#*:}"
+            temp="${temp#*:}"
+            local has_key="${temp##*:}"
+            
+            if [[ "$has_key" == "1" ]]; then
+                if [[ ${selected[$current_index]} -eq 0 ]]; then
+                    selected[$current_index]=1
+                else
+                    selected[$current_index]=0
+                fi
+                # Refresh menu to show updated selection
+                display_checkbox_menu
+            fi
+        elif [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
             # Enter - confirm
             # Build selected flags string first
             local selected_flags=""
@@ -341,57 +414,7 @@ show_check_options_menu() {
             restore_terminal
             trap - EXIT INT TERM
             return
-        fi
-        
-        # Get first character for other keys
-        local key="${input:0:1}"
-        
-        # Handle escape sequences (arrow keys and ESC)
-        if [[ "$key" == $'\x1b' ]]; then
-            # Check if it's an arrow key sequence
-            if [[ ${#input} -ge 3 ]] && [[ "${input:1:1}" == "[" ]]; then
-                # Arrow key sequence
-                local key3="${input:2:1}"
-                case "$key3" in
-                    "A") # Up arrow
-                        if [[ $current_index -gt 0 ]]; then
-                            ((current_index--))
-                        fi
-                        display_checkbox_menu
-                        ;;
-                    "B") # Down arrow
-                        if [[ $current_index -lt $((total_options - 1)) ]]; then
-                            ((current_index++))
-                        fi
-                        display_checkbox_menu
-                        ;;
-                esac
-            else
-                # ESC key (standalone) or 'q'
-                if [[ "$input" == "q" ]] || [[ "$input" == "Q" ]] || [[ "$key" == $'\x1b' ]]; then
-                    restore_terminal
-                    trap - EXIT INT TERM
-                    IPCHECK_MENU_RESULT="FLAGS:CANCEL"
-                    return
-                fi
-            fi
-        elif [[ "$key" == " " ]]; then
-            # Space - toggle selection (only if option is enabled)
-            local option="${options[$current_index]}"
-            local temp="${option#*:}"
-            temp="${temp#*:}"
-            local has_key="${temp##*:}"
-            
-            if [[ "$has_key" == "1" ]]; then
-                if [[ ${selected[$current_index]} -eq 0 ]]; then
-                    selected[$current_index]=1
-                else
-                    selected[$current_index]=0
-                fi
-                # Refresh menu to show updated selection
-                display_checkbox_menu
-            fi
-        elif [[ "$input" == "q" ]] || [[ "$input" == "Q" ]]; then
+        elif [[ "$key" == "q" ]] || [[ "$key" == "Q" ]]; then
             # q - cancel
             restore_terminal
             trap - EXIT INT TERM
