@@ -167,11 +167,24 @@ show_check_options_menu() {
     done
     
     # Enable raw mode for reading single characters
-    local stty_save
+    local stty_save=""
+    
     if [[ -c /dev/tty ]]; then
         stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
-        stty -echo -icanon time 0 min 0 < /dev/tty 2>/dev/null || true
+        if [[ -n "$stty_save" ]]; then
+            stty -echo -icanon time 0 min 0 < /dev/tty 2>/dev/null || true
+            # Set trap to restore terminal settings on exit
+            trap "if [[ -n '$stty_save' ]] && [[ -c /dev/tty ]]; then stty '$stty_save' < /dev/tty 2>/dev/null || true; fi" EXIT INT TERM
+        fi
     fi
+    
+    # Function to restore terminal
+    local restore_terminal() {
+        if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
+            stty "$stty_save" < /dev/tty 2>/dev/null || true
+            trap - EXIT INT TERM
+        fi
+    }
     
     # Function to display menu
     display_checkbox_menu() {
@@ -293,9 +306,8 @@ show_check_options_menu() {
                 esac
             elif [[ -z "$key2" ]]; then
                 # ESC key (no following character)
-                if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
-                    stty "$stty_save" < /dev/tty 2>/dev/null || true
-                fi
+                restore_terminal
+                trap - EXIT INT TERM
                 IPCHECK_MENU_RESULT="FLAGS:CANCEL"
                 return
             fi
@@ -308,21 +320,41 @@ show_check_options_menu() {
             fi
         elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]]; then
             # Enter - confirm
-            break
+            # Build selected flags string first
+            local selected_flags=""
+            for ((i=0; i<total_options; i++)); do
+                if [[ ${selected[$i]} -eq 1 ]]; then
+                    local flag="${options[$i]%%:*}"
+                    selected_flags+="$flag"
+                fi
+            done
+            
+            # If nothing selected, cancel
+            if [[ -z "$selected_flags" ]]; then
+                restore_terminal
+                trap - EXIT INT TERM
+                IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+                return
+            fi
+            
+            # Set result first, then restore terminal
+            IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
+            restore_terminal
+            trap - EXIT INT TERM
+            return
         elif [[ "$key" == "q" ]] || [[ "$key" == "Q" ]]; then
             # q - cancel
-            if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
-                stty "$stty_save" < /dev/tty 2>/dev/null || true
-            fi
+            restore_terminal
+            trap - EXIT INT TERM
             IPCHECK_MENU_RESULT="FLAGS:CANCEL"
             return
         fi
     done
     
+    # This should not be reached, but just in case
     # Restore terminal settings
-    if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
-        stty "$stty_save" < /dev/tty 2>/dev/null || true
-    fi
+    restore_terminal
+    trap - EXIT INT TERM
     
     # Build selected flags string
     local selected_flags=""
@@ -339,5 +371,6 @@ show_check_options_menu() {
         return
     fi
     
+    # Set result before returning
     IPCHECK_MENU_RESULT="FLAGS:$selected_flags"
 }

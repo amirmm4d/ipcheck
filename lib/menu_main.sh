@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.12}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.13}"
     echo -e "${NC}"
     echo
 }
@@ -90,9 +90,11 @@ interactive_menu() {
                 IPCHECK_MENU_RESULT=""
                 
                 # Call check options menu directly (interactive with arrow keys)
+                # Don't redirect stderr to avoid hiding terminal issues
                 set +e
-                show_check_options_menu 2>/dev/null || true
+                show_check_options_menu || true
                 set -e
+                
                 local check_result="${IPCHECK_MENU_RESULT:-}"
                 
                 # If check was cancelled or empty, go back to main menu
