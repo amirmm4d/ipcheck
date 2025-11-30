@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v2.1.8"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.1}"
     echo -e "${NC}"
     echo
 }
@@ -207,12 +207,23 @@ show_check_options_menu() {
     # Read a single character from terminal
     read_char() {
         local char
+        # Save current terminal settings
+        local old_stty
+        old_stty=$(stty -g 2>/dev/null || echo "")
+        # Set terminal to raw mode for single character input
+        if [[ -n "$old_stty" ]]; then
+            stty -echo -icanon raw 2>/dev/null || true
+        fi
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
             exec 3< /dev/tty
-            IFS= read -rs -n1 char <&3
+            IFS= read -rs -n1 char <&3 2>/dev/null || char=""
             exec 3<&-
         else
-            IFS= read -rs -n1 char
+            IFS= read -rs -n1 char 2>/dev/null || char=""
+        fi
+        # Restore terminal settings
+        if [[ -n "$old_stty" ]]; then
+            stty "$old_stty" 2>/dev/null || true
         fi
         printf '%s' "$char"
     }
