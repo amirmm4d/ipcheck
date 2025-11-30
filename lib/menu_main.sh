@@ -76,7 +76,10 @@ interactive_menu() {
                 IPCHECK_MENU_RESULT=""
                 
                 # Call menu directly (it displays itself)
-                (set +e; show_ip_check_menu 2>/dev/null || true; set -e)
+                # Note: We can't use subshell here because variables won't propagate
+                set +e
+                show_ip_check_menu 2>/dev/null || true
+                set -e
                 local input_result="${IPCHECK_MENU_RESULT:-}"
                 
                 if [[ -z "$input_result" ]] || [[ "$input_result" == "INPUT:CANCEL" ]]; then
@@ -87,8 +90,15 @@ interactive_menu() {
                 IPCHECK_MENU_RESULT=""
                 
                 # Call check options menu directly (interactive with arrow keys)
-                (set +e; show_check_options_menu 2>/dev/null || true; set -e)
+                set +e
+                show_check_options_menu 2>/dev/null || true
+                set -e
                 local check_result="${IPCHECK_MENU_RESULT:-}"
+                
+                # If check was cancelled or empty, go back to main menu
+                if [[ -z "$check_result" ]] || [[ "$check_result" == "FLAGS:CANCEL" ]]; then
+                    continue
+                fi
                 
                 if [[ "$check_result" == "FLAGS:"* ]]; then
                     local flags="${check_result#FLAGS:}"
