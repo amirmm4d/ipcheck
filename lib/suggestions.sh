@@ -17,26 +17,53 @@ generate_suggestions() {
     
     # Get Clean Score
     if [[ -f "$ip_dir/ip_score.json" ]]; then
-        clean_score=$(jq -r '.clean_score // 100' "$ip_dir/ip_score.json" 2>/dev/null || echo "100")
+        # Validate JSON before parsing
+        if jq . "$ip_dir/ip_score.json" >/dev/null 2>&1; then
+            clean_score=$(jq -r '.clean_score // 100' "$ip_dir/ip_score.json" 2>/dev/null || echo "100")
+            # If score is null, use default
+            if [[ "$clean_score" == "null" ]]; then
+                clean_score="100"
+            fi
+        else
+            clean_score="100"
+        fi
     fi
     
     # Get CDN status
     if [[ -f "$ip_dir/cdn_status.json" ]]; then
-        cdn_detected=$(jq -r '.cdn_detected // false' "$ip_dir/cdn_status.json" 2>/dev/null || echo "false")
+        # Validate JSON before parsing
+        if jq . "$ip_dir/cdn_status.json" >/dev/null 2>&1; then
+            cdn_detected=$(jq -r '.cdn_detected // false' "$ip_dir/cdn_status.json" 2>/dev/null || echo "false")
+        else
+            cdn_detected="false"
+        fi
     fi
     
     # Get routing quality
     if [[ -f "$ip_dir/route_report.json" ]]; then
         local packet_loss
-        packet_loss=$(jq -r '.packet_loss_percent // 0' "$ip_dir/route_report.json" 2>/dev/null || echo "0")
-        if (( $(echo "$packet_loss > 5" | bc -l 2>/dev/null || echo "0") )); then
-            routing_quality="poor"
+        # Validate JSON before parsing
+        if jq . "$ip_dir/route_report.json" >/dev/null 2>&1; then
+            packet_loss=$(jq -r '.packet_loss_percent // 0' "$ip_dir/route_report.json" 2>/dev/null || echo "0")
+        else
+            packet_loss="0"
+        fi
+        # Validate packet_loss is numeric before comparison
+        if [[ "$packet_loss" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+            if (( $(echo "$packet_loss > 5" | bc -l 2>/dev/null || echo "0") )); then
+                routing_quality="poor"
+            fi
         fi
     fi
     
     # Get port risk
     if [[ -f "$ip_dir/port_scan.json" ]]; then
-        port_risk=$(jq -r '.risk_level // "low"' "$ip_dir/port_scan.json" 2>/dev/null || echo "low")
+        # Validate JSON before parsing
+        if [[ -f "$ip_dir/port_scan.json" ]] && jq . "$ip_dir/port_scan.json" >/dev/null 2>&1; then
+            port_risk=$(jq -r '.risk_level // "low"' "$ip_dir/port_scan.json" 2>/dev/null || echo "low")
+        else
+            port_risk="low"
+        fi
     fi
     
     # Get abuse risk

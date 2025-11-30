@@ -117,7 +117,16 @@ auto_install_vpn() {
     local score=100
     local ip_dir="$STATUS_DIR/$(echo "$ip" | tr '.' '_')"
     if [[ -f "$ip_dir/ip_score.json" ]]; then
-        score=$(jq -r '.clean_score // 100' "$ip_dir/ip_score.json" 2>/dev/null || echo "100")
+        # Validate JSON before parsing
+        if [[ -f "$ip_dir/ip_score.json" ]] && jq . "$ip_dir/ip_score.json" >/dev/null 2>&1; then
+            score=$(jq -r '.clean_score // 100' "$ip_dir/ip_score.json" 2>/dev/null || echo "100")
+            # If score is null, use default
+            if [[ "$score" == "null" ]]; then
+                score="100"
+            fi
+        else
+            score="100"
+        fi
     fi
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -171,7 +180,16 @@ ask_vpn_installation() {
     # Get score if available
     local ip_dir="$STATUS_DIR/$(echo "$ip" | tr '.' '_')"
     if [[ -f "$ip_dir/ip_score.json" ]]; then
-        score=$(jq -r '.clean_score // 100' "$ip_dir/ip_score.json" 2>/dev/null || echo "100")
+        # Validate JSON before parsing
+        if [[ -f "$ip_dir/ip_score.json" ]] && jq . "$ip_dir/ip_score.json" >/dev/null 2>&1; then
+            score=$(jq -r '.clean_score // 100' "$ip_dir/ip_score.json" 2>/dev/null || echo "100")
+            # If score is null, use default
+            if [[ "$score" == "null" ]]; then
+                score="100"
+            fi
+        else
+            score="100"
+        fi
     fi
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

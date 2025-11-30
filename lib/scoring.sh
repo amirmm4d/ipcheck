@@ -76,9 +76,12 @@ generate_score_report() {
     score=$(calculate_clean_score "$ip")
     
     local score_json
+    # Format score as number string for jq
+    local score_str
+    score_str=$(echo "$score" | awk '{printf "%.2f", $1}')
     score_json=$(jq -n \
         --arg ip "$ip" \
-        --argjson score "$(echo "$score" | awk '{printf "%.2f", $1}')" \
+        --arg score "$score_str" \
         --arg fraud "${SCORE_METRICS["${ip}_fraud"]:-unknown}" \
         --arg proxy "${SCORE_METRICS["${ip}_proxy"]:-unknown}" \
         --arg vpn "${SCORE_METRICS["${ip}_vpn"]:-unknown}" \

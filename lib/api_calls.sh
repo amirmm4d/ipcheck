@@ -19,8 +19,14 @@ check_ipqs() {
     echo "$resp" | jq . > "$ip_dir/raw_ipqs.json" 2>/dev/null || echo "$resp" > "$ip_dir/raw_ipqs.json"
     log_message "IPQualityScore response for $ip: $resp"
     local score proxy
-    score=$(jq -r '.fraud_score // "unknown"' <<<"$resp")
-    proxy=$(jq -r '.proxy // "false"' <<<"$resp")
+    # Validate JSON before parsing
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        score=$(jq -r '.fraud_score // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+        proxy=$(jq -r '.proxy // "false"' <<<"$resp" 2>/dev/null || echo "false")
+    else
+        score="unknown"
+        proxy="false"
+    fi
     local details="Fraud Score: $score, Proxy: $proxy"
     if [[ "$proxy" == "true" || "$score" =~ ^[0-9]+$ ]] && [[ "$score" -gt 75 ]]; then
         write_status "$ip_dir" "IPQualityScore" "${RED}FAILED" "$details"
@@ -53,10 +59,15 @@ check_abuseipdb() {
     # Save raw API response
     echo "$resp" | jq . > "$ip_dir/raw_abuseipdb.json" 2>/dev/null || echo "$resp" > "$ip_dir/raw_abuseipdb.json"
     log_message "AbuseIPDB response for $ip: $resp"
-    local confidence
-    confidence=$(jq -r '.data.abuseConfidenceScore // "unknown"' <<<"$resp")
-    local usage_type
-    usage_type=$(jq -r '.data.usageType // "unknown"' <<<"$resp")
+    local confidence usage_type
+    # Validate JSON before parsing
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        confidence=$(jq -r '.data.abuseConfidenceScore // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+        usage_type=$(jq -r '.data.usageType // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+    else
+        confidence="unknown"
+        usage_type="unknown"
+    fi
     local details="Confidence: $confidence%, Type: $usage_type"
     if [[ "$confidence" =~ ^[0-9]+$ ]] && [[ "$confidence" -ge 25 ]]; then
         write_status "$ip_dir" "AbuseIPDB" "${RED}FAILED" "$details"
@@ -81,7 +92,12 @@ check_scamalytics() {
     echo "$resp" | jq . > "$ip_dir/raw_scamalytics.json" 2>/dev/null || echo "$resp" > "$ip_dir/raw_scamalytics.json"
     log_message "Scamalytics response for $ip: $resp"
     local risk_score
-    risk_score=$(jq -r '.risk_score // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+    # Validate JSON before parsing
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        risk_score=$(jq -r '.risk_score // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+    else
+        risk_score="unknown"
+    fi
     local details="Risk Score: $risk_score"
     if [[ "$risk_score" =~ ^[0-9]+$ ]] && [[ "$risk_score" -ge 50 ]]; then
         write_status "$ip_dir" "Scamalytics" "${RED}FAILED" "$details"
@@ -134,7 +150,11 @@ check_host() {
     log_message "Check-Host response for $ip: $resp"
     # Parse result URL and check status
     local result_url
-    result_url=$(jq -r '.request_id // empty' <<<"$resp")
+    # Validate JSON before parsing
+    local result_url=""
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        result_url=$(jq -r '.request_id // empty' <<<"$resp" 2>/dev/null || echo "")
+    fi
     if [[ -z "$result_url" ]]; then
         write_status "$ip_dir" "Check-Host" "${RED}ERROR" "Invalid response"
         log_message "Check-Host error for $ip: Invalid response"
@@ -145,7 +165,12 @@ check_host() {
     result=$(curl --max-time 15 -sf "https://check-host.net/check-result/$result_url" || true)
     local success_count=0
     if [[ -n "$result" ]]; then
-        success_count=$(echo "$result" | jq -r '[.[] | select(. != null) | .[] | select(. != null) | .[0] // empty] | length' 2>/dev/null || echo "0")
+        # Validate JSON before parsing complex query
+        if echo "$result" | jq . >/dev/null 2>&1; then
+            success_count=$(echo "$result" | jq -r '[.[] | select(. != null) | .[] | select(. != null) | .[0] // empty] | length' 2>/dev/null || echo "0")
+        else
+            success_count="0"
+        fi
     fi
     local details="Successful pings: $success_count/5"
     if [[ "$success_count" -ge 3 ]]; then

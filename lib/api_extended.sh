@@ -14,13 +14,26 @@ check_ipapi() {
     echo "$resp" | jq . > "$ip_dir/raw_ipapi.json" 2>/dev/null || echo "$resp" > "$ip_dir/raw_ipapi.json"
     log_message "ipapi response for $ip: $resp"
     local org asn
-    org=$(jq -r '.org // "unknown"' <<<"$resp")
-    asn=$(jq -r '.asn // "unknown"' <<<"$resp")
+    # Validate JSON before parsing
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        org=$(jq -r '.org // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+        asn=$(jq -r '.asn // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+    else
+        org="unknown"
+        asn="unknown"
+    fi
     local details="ASN: $asn, Org: $org"
     # Store for scoring
     SCORE_METRICS["${ip}_asn"]="$asn"
     SCORE_METRICS["${ip}_org"]="$org"
-    SCORE_METRICS["${ip}_is_datacenter"]=$(jq -r '.org // ""' <<<"$resp" | grep -qiE "(datacenter|hosting|cloud|server)" && echo "true" || echo "false")
+    # Validate JSON before parsing
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        local org_check
+        org_check=$(jq -r '.org // ""' <<<"$resp" 2>/dev/null || echo "")
+        SCORE_METRICS["${ip}_is_datacenter"]=$(echo "$org_check" | grep -qiE "(datacenter|hosting|cloud|server)" && echo "true" || echo "false")
+    else
+        SCORE_METRICS["${ip}_is_datacenter"]="false"
+    fi
     write_status "$ip_dir" "ipapi" "${GREEN}PASSED" "$details"
     log_message "ipapi PASSED for $ip: $details"
 }
@@ -46,7 +59,12 @@ check_ipregistry() {
     echo "$resp" | jq . > "$ip_dir/raw_ipregistry.json" 2>/dev/null || echo "$resp" > "$ip_dir/raw_ipregistry.json"
     log_message "ipregistry response for $ip: $resp"
     local company
-    company=$(jq -r '.company.name // "unknown"' <<<"$resp")
+    # Validate JSON before parsing
+    if echo "$resp" | jq . >/dev/null 2>&1; then
+        company=$(jq -r '.company.name // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
+    else
+        company="unknown"
+    fi
     local details="Company: $company"
     SCORE_METRICS["${ip}_company"]="$company"
     write_status "$ip_dir" "ipregistry" "${GREEN}PASSED" "$details"

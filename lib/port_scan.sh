@@ -62,17 +62,31 @@ scan_ports() {
     fi
     
     # Generate port scan report
+    # Convert arrays to JSON strings first
+    local open_json closed_json
+    if [[ ${#open_ports[@]} -eq 0 ]]; then
+        open_json="[]"
+    else
+        open_json=$(printf '%s\n' "${open_ports[@]}" | jq -R . | jq -s .)
+    fi
+    
+    if [[ ${#closed_ports[@]} -eq 0 ]]; then
+        closed_json="[]"
+    else
+        closed_json=$(printf '%s\n' "${closed_ports[@]}" | jq -R . | jq -s .)
+    fi
+    
     local port_json
     port_json=$(jq -n \
         --arg ip "$ip" \
-        --argjson open "$(IFS=','; echo "[${open_ports[*]}]")" \
-        --argjson closed "$(IFS=','; echo "[${closed_ports[*]}]")" \
+        --argjson open "$open_json" \
+        --argjson closed "$closed_json" \
         --arg risk "$risk_level" \
-        --argjson score "$risk_score" \
+        --arg score "$risk_score" \
         '{
             ip: $ip,
-            open_ports: ($open | fromjson),
-            closed_ports: ($closed | fromjson),
+            open_ports: $open,
+            closed_ports: $closed,
             risk_level: $risk,
             risk_score: ($score | tonumber)
         }')

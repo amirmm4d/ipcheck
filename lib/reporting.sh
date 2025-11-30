@@ -7,9 +7,12 @@ generate_table_report() {
     # Get Clean Score if available
     local clean_score="N/A"
     if [[ -f "$ip_dir/ip_score.json" ]]; then
-        clean_score=$(jq -r '.clean_score // "N/A"' "$ip_dir/ip_score.json" 2>/dev/null || echo "N/A")
-        if [[ "$clean_score" != "N/A" ]] && command -v bc &>/dev/null; then
-            clean_score=$(printf "%.0f" "$clean_score" 2>/dev/null || echo "$clean_score")
+        # Validate JSON file before parsing
+        if jq . "$ip_dir/ip_score.json" >/dev/null 2>&1; then
+            clean_score=$(jq -r '.clean_score // "N/A"' "$ip_dir/ip_score.json" 2>/dev/null || echo "N/A")
+            if [[ "$clean_score" != "N/A" ]] && [[ "$clean_score" != "null" ]] && command -v bc &>/dev/null; then
+                clean_score=$(printf "%.0f" "$clean_score" 2>/dev/null || echo "$clean_score")
+            fi
         fi
     else
         # Calculate score on the fly if not generated
@@ -81,7 +84,14 @@ generate_data_report() {
         # Get Clean Score if available
         local clean_score="unknown"
         if [[ -f "$ip_dir/ip_score.json" ]]; then
-            clean_score=$(jq -r '.clean_score // "unknown"' "$ip_dir/ip_score.json" 2>/dev/null || echo "unknown")
+            # Validate JSON file before parsing
+            if jq . "$ip_dir/ip_score.json" >/dev/null 2>&1; then
+                clean_score=$(jq -r '.clean_score // "unknown"' "$ip_dir/ip_score.json" 2>/dev/null || echo "unknown")
+                # If score is null, set to unknown
+                if [[ "$clean_score" == "null" ]]; then
+                    clean_score="unknown"
+                fi
+            fi
         else
             # Calculate score on the fly if not generated
             if command -v bc &>/dev/null; then
@@ -97,7 +107,13 @@ generate_data_report() {
             if [[ "$raw_file" == *.json ]]; then
                 local raw_content
                 raw_content=$(<"$raw_file")
-                raw_data_json=$(echo "$raw_data_json" | jq --arg name "$raw_name" --argjson content "$raw_content" '.[$name] = $content' 2>/dev/null || echo "$raw_data_json")
+                # Validate JSON before using --argjson
+                if echo "$raw_content" | jq . >/dev/null 2>&1; then
+                    raw_data_json=$(echo "$raw_data_json" | jq --arg name "$raw_name" --argjson content "$raw_content" '.[$name] = $content' 2>/dev/null || echo "$raw_data_json")
+                else
+                    # If not valid JSON, treat as string
+                    raw_data_json=$(echo "$raw_data_json" | jq --arg name "$raw_name" --arg content "$raw_content" '.[$name] = $content' 2>/dev/null || echo "$raw_data_json")
+                fi
             else
                 local raw_content
                 raw_content=$(<"$raw_file")
@@ -118,8 +134,11 @@ generate_data_report() {
             status_text=$(echo "$result" | cut -d'|' -f2 | sed "s/$(printf '\033')\\[[0-9;]*m//g") # Strip colors
             details=$(echo "$result" | cut -d'|' -f3)
 
-            if ((status_code == 1 || status_code == 3)); then
-                ((failed_checks++))
+            # Validate status_code is numeric before arithmetic operation
+            if [[ "$status_code" =~ ^[0-9]+$ ]]; then
+                if ((status_code == 1 || status_code == 3)); then
+                    ((failed_checks++))
+                fi
             fi
 
             local check_json
@@ -128,22 +147,26 @@ generate_data_report() {
         done
 
         local overall_status="PASSED"
-        if ((failed_checks >= fail_threshold)); then
-            overall_status="FAILED"
-            overall_exit_code=1
+        # Validate fail_threshold is numeric before comparison
+        if [[ "$fail_threshold" =~ ^[0-9]+$ ]] && [[ "$failed_checks" =~ ^[0-9]+$ ]]; then
+            if ((failed_checks >= fail_threshold)); then
+                overall_status="FAILED"
+                overall_exit_code=1
+            fi
         fi
 
         # Add Clean Score and raw data to JSON
+        # Use --arg instead of --argint (not available in older jq versions)
         ip_json=$(echo "$ip_json" | jq \
             --arg status "$overall_status" \
-            --argint failed "$failed_checks" \
-            --argint thresh "$fail_threshold" \
+            --arg failed "$failed_checks" \
+            --arg thresh "$fail_threshold" \
             --arg score "$clean_score" \
             --argjson raw_data "$raw_data_json" \
             '.overall_status = $status | 
-             .failed_checks = $failed | 
-             .failure_threshold = $thresh |
-             .clean_score = (if $score == "unknown" then null else ($score | tonumber) end) |
+             .failed_checks = ($failed | tonumber) | 
+             .failure_threshold = ($thresh | tonumber) |
+             .clean_score = (if $score == "unknown" or $score == "N/A" then null else ($score | tonumber) end) |
              .raw_data = $raw_data')
 
         json_output+="$ip_json"
