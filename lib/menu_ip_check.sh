@@ -169,22 +169,22 @@ show_check_options_menu() {
     # Enable raw mode for reading single characters
     local stty_save=""
     
-    if [[ -c /dev/tty ]]; then
-        stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
-        if [[ -n "$stty_save" ]]; then
-            stty -echo -icanon time 0 min 0 < /dev/tty 2>/dev/null || true
-            # Set trap to restore terminal settings on exit
-            trap "if [[ -n '$stty_save' ]] && [[ -c /dev/tty ]]; then stty '$stty_save' < /dev/tty 2>/dev/null || true; fi" EXIT INT TERM
-        fi
-    fi
-    
-    # Function to restore terminal
-    local restore_terminal() {
+    # Function to restore terminal (must be defined before trap)
+    restore_terminal() {
         if [[ -n "$stty_save" ]] && [[ -c /dev/tty ]]; then
             stty "$stty_save" < /dev/tty 2>/dev/null || true
             trap - EXIT INT TERM
         fi
     }
+    
+    if [[ -c /dev/tty ]]; then
+        stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
+        if [[ -n "$stty_save" ]]; then
+            stty -echo -icanon time 0 min 0 < /dev/tty 2>/dev/null || true
+            # Set trap to restore terminal settings on exit
+            trap restore_terminal EXIT INT TERM
+        fi
+    fi
     
     # Function to display menu
     display_checkbox_menu() {
