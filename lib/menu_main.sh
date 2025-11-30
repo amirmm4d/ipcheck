@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.8}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.9}"
     echo -e "${NC}"
     echo
 }
@@ -73,7 +73,7 @@ interactive_menu() {
         case "$main_choice" in
             1)
                 # Call menu directly (it displays itself)
-                show_ip_check_menu
+                (set +e; show_ip_check_menu 2>/dev/null || true; set -e)
                 local input_result="$IPCHECK_MENU_RESULT"
                 
                 if [[ -z "$input_result" ]] || [[ "$input_result" == "INPUT:CANCEL" ]]; then
@@ -81,7 +81,7 @@ interactive_menu() {
                 fi
                 
                 # Call check options menu directly (interactive with arrow keys)
-                show_check_options_menu
+                (set +e; show_check_options_menu 2>/dev/null || true; set -e)
                 local check_result="$IPCHECK_MENU_RESULT"
                 
                 if [[ "$check_result" == "FLAGS:"* ]]; then
