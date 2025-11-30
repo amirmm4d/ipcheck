@@ -188,44 +188,107 @@ show_check_options_menu() {
         return
     fi
     
-    # Setup terminal for interactive mode
-    if command -v stty >/dev/null 2>&1; then
+    # Setup terminal for interactive mode (only if we can do it safely)
+    if command -v stty >/dev/null 2>&1 && [[ -t 0 ]]; then
+        set +e  # Temporarily disable exit on error for stty
         _MENU_STTY_SAVED=$(stty -g 2>/dev/null || echo "")
-        if [[ -n "$_MENU_STTY_SAVED" ]]; then
-            # Configure terminal for character reading
+        if [[ -n "$_MENU_STTY_SAVED" ]] && [[ "$_MENU_STTY_SAVED" != "invalid" ]]; then
+            # Configure terminal for character reading - only if it works
             if stty -echo -icanon min 1 time 0 2>/dev/null; then
                 _MENU_TERMINAL_CONFIGURED="true"
             else
                 _MENU_STTY_SAVED=""
             fi
+        else
+            _MENU_STTY_SAVED=""
+        fi
+        set -e  # Re-enable exit on error
+    fi
+    
+    # If terminal configuration failed, use simple menu instead
+    if [[ "${_MENU_TERMINAL_CONFIGURED:-false}" != "true" ]]; then
+        echo -e "${YELLOW}Note: Using simple menu mode (arrow keys disabled)${NC}"
+        echo
+        echo -e "${BLUE}Select Check Options / انتخاب گزینه‌های بررسی${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+        local i=0
+        for option in "${options[@]}"; do
+            local flag="${option%%:*}"
+            local desc="${option#*:}"
+            desc="${desc%%:*}"
+            ((i++))
+            echo -e "  ${GREEN}$i)${NC} $flag - $desc"
+        done
+        echo
+        echo -e "${YELLOW}Enter option numbers (comma-separated) or 'all' for all options, or 'q' to cancel:${NC}"
+        echo -ne "${BLUE}Selection: ${NC}"
+        local simple_input=""
+        if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+            exec 3< /dev/tty
+            IFS= read -r simple_input <&3
+            exec 3<&-
+        else
+            IFS= read -r simple_input || simple_input=""
+        fi
+        simple_input=$(printf '%s' "$simple_input" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
+        if [[ "$simple_input" == "q" ]] || [[ "$simple_input" == "cancel" ]]; then
+            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+            return
+        elif [[ "$simple_input" == "all" ]]; then
+            IPCHECK_MENU_RESULT="FLAGS:qasrchgdtpRunjl"
+            return
+        else
+            local selected_flags_simple=""
+            IFS=',' read -ra selections <<< "$simple_input"
+            for sel in "${selections[@]}"; do
+                sel=$(echo "$sel" | tr -d '[:space:]')
+                if [[ "$sel" =~ ^[0-9]+$ ]] && [[ $sel -ge 1 ]] && [[ $sel -le ${#options[@]} ]]; then
+                    local idx=$((sel - 1))
+                    local flag="${options[$idx]%%:*}"
+                    selected_flags_simple+="$flag"
+                fi
+            done
+            IPCHECK_MENU_RESULT="FLAGS:$selected_flags_simple"
+            return
         fi
     fi
     
-    # Cleanup function (can access global variables)
+    # Cleanup function (can access global variables, safe for set -e)
     _menu_cleanup_terminal() {
+        set +e  # Disable exit on error for cleanup
         if [[ "${_MENU_TERMINAL_CONFIGURED:-false}" == "true" ]] && [[ -n "${_MENU_STTY_SAVED:-}" ]] && command -v stty >/dev/null 2>&1; then
             stty "${_MENU_STTY_SAVED}" 2>/dev/null || true
         fi
         # Ensure echo is always restored
         stty echo 2>/dev/null || true
+        set -e  # Re-enable exit on error
     }
     
     # Set trap to cleanup on exit
     trap '_menu_cleanup_terminal' EXIT INT TERM HUP
     
-    # Read a single character from terminal
+    # Read a single character from terminal (with error handling for set -e)
     read_char() {
+        set +e  # Temporarily disable exit on error
         local char=""
         
         # Read from /dev/tty if available, otherwise stdin
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            IFS= read -rs -n1 char < /dev/tty 2>/dev/null || char=""
+            IFS= read -rs -n1 char < /dev/tty 2>/dev/null
+            local read_status=$?
+            if [[ $read_status -ne 0 ]]; then
+                char=""
+            fi
         else
-            IFS= read -rs -n1 char 2>/dev/null || char=""
+            IFS= read -rs -n1 char 2>/dev/null
+            local read_status=$?
+            if [[ $read_status -ne 0 ]]; then
+                char=""
+            fi
         fi
         
-        # Return character or empty on error
-        printf '%s' "$char"
+        set -e  # Re-enable exit on error
+        printf '%s' "${char:-}"
     }
     
     while true; do
@@ -296,21 +359,35 @@ show_check_options_menu() {
         echo -e "  ${YELLOW}↑${NC}/${YELLOW}↓${NC} - Navigate  ${YELLOW}Space${NC}/${YELLOW}Enter${NC} - Toggle  ${YELLOW}a${NC} - Select all  ${YELLOW}c${NC} - Clear  ${YELLOW}d${NC} - Done  ${YELLOW}q${NC}/${YELLOW}Esc${NC} - Cancel"
         echo
         
-        # Read key input - wait for user input
+        # Read key input - wait for user input (disable exit on error temporarily)
         local key=""
+        set +e  # Temporarily disable exit on error for read
         key=$(read_char 2>/dev/null || echo "")
+        set -e  # Re-enable exit on error
         
         # If no key read or empty, try again (might be a timing issue)
         if [[ -z "$key" ]]; then
             sleep 0.1
+            set +e
             key=$(read_char 2>/dev/null || echo "")
+            set -e
+        fi
+        
+        # If still no key after retry, wait a bit and try once more
+        if [[ -z "$key" ]]; then
+            sleep 0.2
+            set +e
+            key=$(read_char 2>/dev/null || echo "")
+            set -e
         fi
         
         # If still no key, cancel and exit gracefully
         if [[ -z "$key" ]]; then
             # Restore terminal before exit
+            set +e
             _menu_cleanup_terminal
             trap - EXIT INT TERM HUP 2>/dev/null || true
+            set -e
             IPCHECK_MENU_RESULT="FLAGS:CANCEL"
             return
         fi
