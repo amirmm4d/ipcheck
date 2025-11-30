@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.28}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.29}"
     echo -e "${NC}"
     echo
 }
@@ -44,21 +44,34 @@ show_main_menu() {
 
 interactive_menu() {
     while true; do
-        show_logo
-        
-        # Use universal menu function
-        local menu_options=(
-            "1) 🔍 Check IP Address / بررسی آدرس IP"
-            "2) 🔧 Install VPN Server / نصب سرور VPN"
-            "3) 🗑️  Uninstall IPCheck / حذف IPCheck"
-            "4) ❌ Exit / خروج"
-        )
-        
-        local selected
-        selected=$(show_menu "📋 Main Menu / منوی اصلی" "${menu_options[@]}")
+        # Check if any menu tool is available
+        local tool
+        tool=$(detect_menu_tool)
         
         local main_choice=""
-        if [[ -z "$selected" ]]; then
+        
+        if [[ "$tool" != "none" ]]; then
+            # Use menu tool
+            show_logo
+            local menu_options=(
+                "1) 🔍 Check IP Address / بررسی آدرس IP"
+                "2) 🔧 Install VPN Server / نصب سرور VPN"
+                "3) 🗑️  Uninstall IPCheck / حذف IPCheck"
+                "4) ❌ Exit / خروج"
+            )
+            
+            local selected
+            selected=$(show_menu "📋 Main Menu / منوی اصلی" "${menu_options[@]}")
+            
+            if [[ -n "$selected" ]]; then
+                # Extract choice number (first character)
+                main_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+            else
+                # User cancelled or menu failed, exit
+                echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
+                exit 0
+            fi
+        else
             # Fallback to old menu if no tool available
             show_main_menu
             echo -ne "${BLUE}👉 Select an option (1-4): ${NC}"
@@ -76,9 +89,6 @@ interactive_menu() {
                 echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
                 exit 0
             fi
-        else
-            # Extract choice number (first character)
-            main_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
         fi
         
         case "$main_choice" in

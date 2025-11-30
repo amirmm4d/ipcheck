@@ -34,12 +34,21 @@ show_vpn_menu() {
         "7) ⬅️  Back to main menu"
     )
     
-    local selected
-    selected=$(show_menu "🔧 VPN Installation / نصب VPN" "${menu_options[@]}")
+    local tool
+    tool=$(detect_menu_tool)
     
     local vpn_choice=""
-    if [[ -n "$selected" ]]; then
-        vpn_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+    
+    if [[ "$tool" != "none" ]]; then
+        local selected
+        selected=$(show_menu "🔧 VPN Installation / نصب VPN" "${menu_options[@]}")
+        
+        if [[ -n "$selected" ]]; then
+            vpn_choice=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+        else
+            # User cancelled
+            return
+        fi
     fi
     
     if [[ -z "$vpn_choice" ]]; then

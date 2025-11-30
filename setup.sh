@@ -2,13 +2,13 @@
 #
 # setup.sh - v8: Selective and scalable installer for the tool suite.
 # Installs all or selected tools from the 'tools/' directory or root.
-# Supports IPCheck Suite v2.2.28
+# Supports IPCheck Suite v2.2.29
 
 set -eo pipefail
 
 # --- Version ---
 # IPCheck Suite version - update this when releasing new versions
-IPCHECK_SUITE_VERSION="2.2.28"
+IPCHECK_SUITE_VERSION="2.2.29"
 
 # --- Configuration & Colors ---
 # Handle case when script is piped from curl (BASH_SOURCE may be unbound)

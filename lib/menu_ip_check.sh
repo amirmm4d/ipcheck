@@ -11,12 +11,22 @@ show_ip_check_menu() {
         "4) ⬅️  Back to main menu / بازگشت به منوی اصلی"
     )
     
-    local selected
-    selected=$(show_menu "📋 IP Check Options / گزینه‌های بررسی IP" "${menu_options[@]}")
+    local tool
+    tool=$(detect_menu_tool)
     
     local input_method=""
-    if [[ -n "$selected" ]]; then
-        input_method=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+    
+    if [[ "$tool" != "none" ]]; then
+        local selected
+        selected=$(show_menu "📋 IP Check Options / گزینه‌های بررسی IP" "${menu_options[@]}")
+        
+        if [[ -n "$selected" ]]; then
+            input_method=$(echo "$selected" | grep -o '^[0-9]' | head -1)
+        else
+            # User cancelled
+            IPCHECK_MENU_RESULT="INPUT:CANCEL"
+            return
+        fi
     fi
     
     if [[ -z "$input_method" ]]; then
@@ -218,10 +228,25 @@ show_check_options_menu() {
     menu_items+=("l - Enable Logging")
     
     # Use universal multi-select menu
-    local selected_items
-    selected_items=$(show_multi_menu "Select Check Options / انتخاب گزینه‌های بررسی" "${menu_items[@]}")
+    local tool
+    tool=$(detect_menu_tool)
+    
+    local selected_items=""
+    
+    if [[ "$tool" != "none" ]]; then
+        selected_items=$(show_multi_menu "Select Check Options / انتخاب گزینه‌های بررسی" "${menu_items[@]}")
+    fi
     
     if [[ -z "$selected_items" ]]; then
+        # Show fallback message if no tool available
+        if [[ "$tool" == "none" ]]; then
+            clear
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}⚠ No interactive menu tool available (fzf/dialog/whiptail)${NC}"
+            echo -e "${YELLOW}Please install one of these tools or use command-line flags.${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            sleep 2
+        fi
         IPCHECK_MENU_RESULT="FLAGS:CANCEL"
         return
     fi

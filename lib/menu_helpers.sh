@@ -7,12 +7,19 @@ show_menu_fzf() {
     shift
     local menu_items=("$@")
     
+    # Ensure we're reading from terminal
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        # Not a terminal, can't use fzf
+        echo ""
+        return
+    fi
+    
     local selected
     selected=$(printf '%s\n' "${menu_items[@]}" | \
         fzf --height=10 --reverse --border \
         --header="$title" \
         --prompt="👉 Select > " \
-        --pointer="▶" 2>/dev/null || echo "")
+        --pointer="▶" < /dev/tty 2>/dev/null || echo "")
     
     echo "$selected"
 }
@@ -22,6 +29,13 @@ show_menu_dialog() {
     local title="$1"
     shift
     local menu_items=("$@")
+    
+    # Ensure we're reading from terminal
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        # Not a terminal, can't use dialog
+        echo ""
+        return
+    fi
     
     # Build dialog menu items (tag item description)
     local dialog_items=()
@@ -36,7 +50,7 @@ show_menu_dialog() {
         --title "$title" \
         --menu "Select an option:" \
         15 70 10 \
-        "${dialog_items[@]}" 2>/dev/null || echo "")
+        "${dialog_items[@]}" < /dev/tty 2>/dev/null || echo "")
     
     if [[ -n "$choice" ]] && [[ "$choice" =~ ^[0-9]+$ ]]; then
         # Return the selected item text
@@ -53,6 +67,13 @@ show_menu_whiptail() {
     shift
     local menu_items=("$@")
     
+    # Ensure we're reading from terminal
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        # Not a terminal, can't use whiptail
+        echo ""
+        return
+    fi
+    
     # Build whiptail menu items (tag item description)
     local whiptail_items=()
     local i=1
@@ -66,7 +87,7 @@ show_menu_whiptail() {
         --title "$title" \
         --menu "Select an option:" \
         15 70 10 \
-        "${whiptail_items[@]}" 2>/dev/null || echo "")
+        "${whiptail_items[@]}" < /dev/tty 2>/dev/null || echo "")
     
     if [[ -n "$choice" ]] && [[ "$choice" =~ ^[0-9]+$ ]]; then
         # Return the selected item text
@@ -83,13 +104,20 @@ show_multi_menu_fzf() {
     shift
     local menu_items=("$@")
     
+    # Ensure we're reading from terminal
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        # Not a terminal, can't use fzf
+        echo ""
+        return
+    fi
+    
     local selected_items
     selected_items=$(printf '%s\n' "${menu_items[@]}" | \
         fzf --multi --height=20 --reverse --border \
         --header="$title (Space to select, Enter to confirm)" \
         --prompt="Options > " \
         --pointer="▶" \
-        --marker="✓ " 2>/dev/null || echo "")
+        --marker="✓ " < /dev/tty 2>/dev/null || echo "")
     
     echo "$selected_items"
 }
@@ -121,12 +149,19 @@ show_multi_menu_dialog() {
         return
     fi
     
+    # Ensure we're reading from terminal
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        # Not a terminal, can't use dialog
+        echo ""
+        return
+    fi
+    
     local choices
     choices=$(dialog --clear --stdout \
         --title "$title" \
         --checklist "Select options (Space to toggle, Tab to move, Enter to confirm):" \
         20 70 15 \
-        "${dialog_items[@]}" 2>/dev/null || echo "")
+        "${dialog_items[@]}" < /dev/tty 2>/dev/null || echo "")
     
     if [[ -n "$choices" ]]; then
         # Return selected items using original indices
@@ -166,12 +201,19 @@ show_multi_menu_whiptail() {
         return
     fi
     
+    # Ensure we're reading from terminal
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        # Not a terminal, can't use whiptail
+        echo ""
+        return
+    fi
+    
     local choices
     choices=$(whiptail --clear --stdout \
         --title "$title" \
         --checklist "Select options (Space to toggle, Tab to move, Enter to confirm):" \
         20 70 15 \
-        "${whiptail_items[@]}" 2>/dev/null || echo "")
+        "${whiptail_items[@]}" < /dev/tty 2>/dev/null || echo "")
     
     if [[ -n "$choices" ]]; then
         # Return selected items using original indices
