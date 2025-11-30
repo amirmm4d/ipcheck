@@ -79,14 +79,8 @@ show_ip_check_menu() {
                 echo -e "${GREEN}✓${NC} ${BLUE}Server's public IP: ${GREEN}$server_ip${NC}"
                 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 echo
-                echo -ne "${BLUE}Press Enter to continue with IP check...${NC}"
-                if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-                    exec 3< /dev/tty
-                    IFS= read -r <&3
-                    exec 3<&-
-                else
-                    IFS= read -r
-                fi
+                echo -e "${BLUE}Continuing to check options menu...${NC}"
+                sleep 1.5 2>/dev/null || sleep 1
                 result="INPUT:--server"
             else
                 echo -e "${RED}✗${NC} ${RED}Error: Could not determine server's public IP.${NC}"
