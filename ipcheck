@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.2.25"
+IPCHECK_VERSION="2.2.28"
 
 # Determine script directory for loading lib files
 # If installed system-wide, use /usr/local/lib/ipcheck, otherwise use local lib/
