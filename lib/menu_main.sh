@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.34}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.35}"
     echo -e "${NC}"
     echo
 }
@@ -182,12 +182,23 @@ interactive_menu() {
                         fi
                     fi
                     
-                    # Execute
-                    echo -e "\n${BLUE}Running: ipcheck ${cmd_args[*]}${NC}\n"
+                    # Execute the command
+                    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo -e "${BLUE}Running: ipcheck ${cmd_args[*]}${NC}"
+                    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+                    # Call process_main_args and capture exit code
                     process_main_args "${cmd_args[@]}"
                     local exit_code=$?
                     echo
-                    read -p "Press Enter to continue..."
+                    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo -ne "${BLUE}Press Enter to return to main menu...${NC}"
+                    if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                        exec 3< /dev/tty
+                        IFS= read -r <&3
+                        exec 3<&-
+                    else
+                        IFS= read -r
+                    fi
                 fi
                 ;;
             2)

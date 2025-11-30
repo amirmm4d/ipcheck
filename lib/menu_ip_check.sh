@@ -266,6 +266,20 @@ show_check_options_menu() {
     local selected_items=""
     
     if [[ "$tool" == "dialog" ]]; then
+        # Show help message before menu
+        clear
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}📌 Menu Instructions / راهنمای منو:${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}  • Use ↑↓ arrow keys to navigate / از فلش‌های بالا/پایین استفاده کنید${NC}"
+        echo -e "${BLUE}  • Press ${YELLOW}SPACE${BLUE} to select/deselect options / ${YELLOW}Space${BLUE} برای انتخاب/لغو انتخاب${NC}"
+        echo -e "${BLUE}  • Press ${YELLOW}TAB${BLUE} to move between buttons / ${YELLOW}Tab${BLUE} برای جابجایی بین دکمه‌ها${NC}"
+        echo -e "${BLUE}  • Press ${YELLOW}ENTER${BLUE} to confirm selection / ${YELLOW}Enter${BLUE} برای تأیید انتخاب${NC}"
+        echo -e "${BLUE}  • Press ${YELLOW}ESC${BLUE} to cancel / ${YELLOW}ESC${BLUE} برای لغو${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo
+        sleep 2
+        
         selected_items=$(show_multi_menu "Select Check Options / انتخاب گزینه‌های بررسی" "${menu_items[@]}")
     fi
     
