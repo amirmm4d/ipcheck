@@ -247,12 +247,29 @@ show_check_options_menu() {
         # Show fallback message if no dialog available
         if [[ "$tool" != "dialog" ]]; then
             clear
+            echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${RED}❌ Error: dialog is not installed.${NC}"
             echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -e "${YELLOW}⚠ dialog is not installed.${NC}"
-            echo -e "${YELLOW}Please install dialog: sudo apt-get install dialog${NC}"
-            echo -e "${YELLOW}Or use command-line flags instead.${NC}"
+            echo -e "${YELLOW}IPCheck requires 'dialog' for interactive menus.${NC}"
+            echo -e "${YELLOW}Please install it using one of the following commands:${NC}"
+            echo -e ""
+            echo -e "${GREEN}  Ubuntu/Debian:${NC} sudo apt-get install dialog"
+            echo -e "${GREEN}  Fedora/CentOS:${NC} sudo dnf install dialog"
+            echo -e "${GREEN}  Arch Linux:${NC}   sudo pacman -S dialog"
+            echo -e ""
+            echo -e "${YELLOW}Or run the installer again:${NC} sudo ./setup.sh"
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BLUE}Alternatively, you can use command-line flags instead of menus.${NC}"
             echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            sleep 2
+            echo
+            echo -ne "${BLUE}Press Enter to continue...${NC}"
+            if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
+                exec 3< /dev/tty
+                IFS= read -r <&3
+                exec 3<&-
+            else
+                IFS= read -r
+            fi
         fi
         IPCHECK_MENU_RESULT="FLAGS:CANCEL"
         return

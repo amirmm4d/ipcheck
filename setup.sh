@@ -10,7 +10,7 @@ set -eo pipefail
 # IPCheck Suite version - will be synced with ipcheck script version
 # The ipcheck script (IPCHECK_VERSION) is the source of truth
 # This variable will be updated to match ipcheck script version during installation
-IPCHECK_SUITE_VERSION="2.2.32"  # Default fallback version - will be synced from ipcheck script
+IPCHECK_SUITE_VERSION="2.2.33"  # Default fallback version - will be synced from ipcheck script
 
 # Function to sync version from ipcheck script (called during installation)
 sync_version_from_script() {
@@ -96,9 +96,8 @@ installation_rollback() {
 check_dependencies() {
     echo -e "${BLUE}--- STEP 1: Checking Dependencies ---${NC}"
     local missing_deps=()
-    local required_cmds=("curl" "jq")
-    # Optional but recommended for better menu experience
-    local optional_cmds=("dialog")
+    # Required dependencies for IPCheck
+    local required_cmds=("curl" "jq" "dialog")
 
     for cmd in "${required_cmds[@]}"; do
         if ! command -v "$cmd" &>/dev/null; then
@@ -108,20 +107,6 @@ check_dependencies() {
             echo -e "   ${GREEN}✅  Found '$cmd'.${NC}"
         fi
     done
-    
-    # Check optional menu tools
-    local found_menu_tool=false
-    for cmd in "${optional_cmds[@]}"; do
-        if command -v "$cmd" &>/dev/null; then
-            echo -e "   ${GREEN}✅  Found optional menu tool '$cmd'.${NC}"
-            found_menu_tool=true
-        fi
-    done
-    
-    if [[ "$found_menu_tool" == "false" ]]; then
-        echo -e "   ${YELLOW}⚠️  dialog is not installed. Interactive menus will use fallback mode.${NC}"
-        echo -e "   ${YELLOW}   Menus will use basic text input.${NC}"
-    fi
 
     if [ ${#missing_deps[@]} -eq 0 ]; then
         echo -e "${GREEN}✅ All dependencies are satisfied.${NC}"
@@ -170,12 +155,6 @@ check_dependencies() {
             echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
             exit 1
         }
-        # Try to install optional menu tool (don't fail if it's not available)
-        echo -e "${BLUE}Installing optional menu tool (dialog)...${NC}"
-        apt-get install -y dialog 2>/dev/null || {
-            echo -e "${YELLOW}⚠️  dialog could not be installed.${NC}"
-            echo -e "${YELLOW}   Menus will use basic text input.${NC}"
-        }
         ;;
     fedora | centos | rhel)
         echo -e "${BLUE}Installing ${missing_deps[*]} using package manager...${NC}"
@@ -184,8 +163,6 @@ check_dependencies() {
                 echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
                 exit 1
             }
-            # Try to install optional menu tool
-            dnf install -y dialog 2>/dev/null || true
         elif command -v yum &>/dev/null; then
             yum install -y "${missing_deps[@]}" || {
                 echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
@@ -204,8 +181,6 @@ check_dependencies() {
             echo -e "${RED}❌ Failed to install dependencies. Please install manually: ${missing_deps[*]}${NC}"
             exit 1
         }
-        # Try to install optional menu tool
-        pacman -S --noconfirm dialog 2>/dev/null || true
         ;;
     *)
         echo -e "${RED}❌ Unsupported OS (${os_id:-unknown}). Please install manually: ${missing_deps[*]}${NC}"
