@@ -47,12 +47,12 @@ show_ip_check_menu() {
                 input_method="4"
             fi
         else
-            # User cancelled
+            # User cancelled - return to main menu
             IPCHECK_MENU_RESULT="INPUT:CANCEL"
             return
         fi
     else
-        # Fallback to old menu
+        # Fallback to old menu (only when dialog is not available)
         clear
         show_logo
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -278,6 +278,12 @@ show_check_options_menu() {
         # Clear the help screen after selection
         if [[ -n "$selected_items" ]]; then
             clear
+        fi
+        
+        # If user cancelled (empty selection), return to main menu
+        if [[ -z "$selected_items" ]]; then
+            IPCHECK_MENU_RESULT="FLAGS:CANCEL"
+            return
         fi
     fi
     

@@ -83,7 +83,7 @@ show_vpn_menu() {
                     ;;
             esac
         else
-            # User cancelled
+            # User cancelled - return to main menu
             return
         fi
     fi

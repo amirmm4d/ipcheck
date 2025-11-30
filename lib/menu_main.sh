@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.37}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.38}"
     echo -e "${NC}"
     echo
 }
@@ -95,8 +95,9 @@ interactive_menu() {
                         ;;
                 esac
             else
-                # User cancelled or dialog failed - fall back to text menu
-                use_fallback=true
+                # User cancelled - exit if dialog is available
+                echo -e "${GREEN}Goodbye! / خداحافظ!${NC}"
+                exit 0
             fi
         else
             # No dialog available, use fallback
