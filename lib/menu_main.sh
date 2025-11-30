@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.9}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.10}"
     echo -e "${NC}"
     echo
 }
@@ -72,17 +72,23 @@ interactive_menu() {
         
         case "$main_choice" in
             1)
+                # Initialize result variable to avoid unbound variable error
+                IPCHECK_MENU_RESULT=""
+                
                 # Call menu directly (it displays itself)
                 (set +e; show_ip_check_menu 2>/dev/null || true; set -e)
-                local input_result="$IPCHECK_MENU_RESULT"
+                local input_result="${IPCHECK_MENU_RESULT:-}"
                 
                 if [[ -z "$input_result" ]] || [[ "$input_result" == "INPUT:CANCEL" ]]; then
                     continue
                 fi
                 
+                # Reset for next menu call
+                IPCHECK_MENU_RESULT=""
+                
                 # Call check options menu directly (interactive with arrow keys)
                 (set +e; show_check_options_menu 2>/dev/null || true; set -e)
-                local check_result="$IPCHECK_MENU_RESULT"
+                local check_result="${IPCHECK_MENU_RESULT:-}"
                 
                 if [[ "$check_result" == "FLAGS:"* ]]; then
                     local flags="${check_result#FLAGS:}"
