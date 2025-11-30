@@ -9,7 +9,7 @@ show_logo() {
     echo "    ██║██║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗"
     echo "    ╚═╝╚═╝      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝"
     echo "    ════════════════════════════════════════════════════"
-    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.19}"
+    echo "    Advanced IP Reputation Checker v${IPCHECK_VERSION:-2.2.20}"
     echo -e "${NC}"
     echo
 }

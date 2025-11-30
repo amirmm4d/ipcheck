@@ -132,23 +132,45 @@ show_ip_check_menu() {
 }
 
 show_check_options_menu() {
-    # Define all options with their flags and descriptions
+    # Load API keys to check availability
+    load_config
+    
+    # Check which API keys are available
+    local has_ipqs_key=0
+    local has_abuseipdb_key=0
+    local has_ripe_key=0
+    local has_ht_key=0
+    
+    if [[ -n "${IPQS_KEY:-}" ]]; then
+        has_ipqs_key=1
+    fi
+    if [[ -n "${ABUSEIPDB_KEY:-}" ]]; then
+        has_abuseipdb_key=1
+    fi
+    if [[ -n "${RIPE_KEY:-}" ]]; then
+        has_ripe_key=1
+    fi
+    if [[ -n "${HT_KEY:-}" ]]; then
+        has_ht_key=1
+    fi
+    
+    # Define all options with their flags, descriptions, and API key requirements
     local -a options=(
-        "q:IPQualityScore:Basic Checks"
-        "a:AbuseIPDB:Basic Checks"
-        "s:Scamalytics:Basic Checks"
-        "r:RIPE Atlas:Basic Checks"
-        "c:Check-Host:Basic Checks"
-        "h:HostTracker:Basic Checks"
-        "g:IP Quality Score:Advanced Features"
-        "d:CDN Detection:Advanced Features"
-        "t:Routing Health:Advanced Features"
-        "p:Port Scan:Advanced Features"
-        "R:Reality Test:Advanced Features"
-        "u:Usage History:Advanced Features"
-        "n:Suggestions:Advanced Features"
-        "j:JSON Output:Output Options"
-        "l:Enable Logging:Output Options"
+        "q:IPQualityScore:Basic Checks:$has_ipqs_key"
+        "a:AbuseIPDB:Basic Checks:$has_abuseipdb_key"
+        "s:Scamalytics:Basic Checks:1"
+        "r:RIPE Atlas:Basic Checks:$has_ripe_key"
+        "c:Check-Host:Basic Checks:1"
+        "h:HostTracker:Basic Checks:$has_ht_key"
+        "g:IP Quality Score:Advanced Features:1"
+        "d:CDN Detection:Advanced Features:1"
+        "t:Routing Health:Advanced Features:1"
+        "p:Port Scan:Advanced Features:1"
+        "R:Reality Test:Advanced Features:1"
+        "u:Usage History:Advanced Features:1"
+        "n:Suggestions:Advanced Features:1"
+        "j:JSON Output:Output Options:1"
+        "l:Enable Logging:Output Options:1"
     )
     
     local total_options=${#options[@]}
@@ -174,9 +196,12 @@ show_check_options_menu() {
     if [[ -c /dev/tty ]]; then
         stty_save=$(stty -g < /dev/tty 2>/dev/null || echo "")
         if [[ -n "$stty_save" ]]; then
-            # Set raw mode - disable canonical mode to read single chars
-            # Keep echo off but allow newline to be read
-            stty -echo -icanon < /dev/tty 2>/dev/null || true
+            # Set cbreak mode - allows reading single chars including Enter
+            # cbreak: characters available immediately, but special processing still works
+            stty -echo cbreak < /dev/tty 2>/dev/null || {
+                # Fallback: use -icanon with min 1 to allow Enter to be read
+                stty -echo -icanon min 1 time 0 < /dev/tty 2>/dev/null || true
+            }
             # Set trap to restore terminal settings on exit
             trap restore_terminal EXIT INT TERM
         fi
@@ -197,9 +222,11 @@ show_check_options_menu() {
         for ((i=0; i<total_options; i++)); do
             local option="${options[$i]}"
             local flag="${option%%:*}"
-            local desc="${option#*:}"
-            desc="${desc%%:*}"
-            local section="${option##*:}"
+            local temp="${option#*:}"
+            local desc="${temp%%:*}"
+            temp="${temp#*:}"
+            local section="${temp%%:*}"
+            local has_key="${temp##*:}"
             
             # Print section header when section changes
             if [[ "$section" != "$current_section" ]]; then
@@ -223,26 +250,53 @@ show_check_options_menu() {
             # Display checkbox and option
             local checkbox=""
             local color=""
-            if [[ $i -eq $current_index ]]; then
-                # Current item - highlight
-                if [[ ${selected[$i]} -eq 1 ]]; then
-                    checkbox="${GREEN}[✓]${NC}"
-                    color="${GREEN}"
-                else
+            local disabled=""
+            
+            # Check if option is disabled (no API key)
+            if [[ "$has_key" == "0" ]]; then
+                disabled=" (API key required)"
+                # Use dim/gray color for disabled items
+                if [[ $i -eq $current_index ]]; then
+                    # Current item - highlight but grayed out
                     checkbox="${YELLOW}[ ]${NC}"
                     color="${YELLOW}"
-                fi
-                echo -e "  ${color}▶${NC} $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
-            else
-                # Other items
-                if [[ ${selected[$i]} -eq 1 ]]; then
-                    checkbox="${GREEN}[✓]${NC}"
-                    color="${GREEN}"
+                    echo -e "  ${color}▶${NC} ${YELLOW}[ ]${NC} ${YELLOW}$flag${NC} - ${YELLOW}$desc${NC}${YELLOW}$disabled${NC}"
                 else
+                    # Other items - grayed out (dimmed)
                     checkbox="${NC}[ ]${NC}"
                     color="${NC}"
+                    # Use tput dim if available, otherwise just normal color
+                    if command -v tput >/dev/null 2>&1; then
+                        local dim=$(tput dim 2>/dev/null || echo "")
+                        local nodim=$(tput sgr0 2>/dev/null || echo "")
+                        echo -e "    ${dim}$checkbox${nodim} ${dim}$flag${nodim} - ${dim}$desc${nodim}${YELLOW}$disabled${NC}"
+                    else
+                        echo -e "    $checkbox $flag - $desc${YELLOW}$disabled${NC}"
+                    fi
                 fi
-                echo -e "    $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
+            else
+                # Enabled option
+                if [[ $i -eq $current_index ]]; then
+                    # Current item - highlight
+                    if [[ ${selected[$i]} -eq 1 ]]; then
+                        checkbox="${GREEN}[✓]${NC}"
+                        color="${GREEN}"
+                    else
+                        checkbox="${YELLOW}[ ]${NC}"
+                        color="${YELLOW}"
+                    fi
+                    echo -e "  ${color}▶${NC} $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
+                else
+                    # Other items
+                    if [[ ${selected[$i]} -eq 1 ]]; then
+                        checkbox="${GREEN}[✓]${NC}"
+                        color="${GREEN}"
+                    else
+                        checkbox="${NC}[ ]${NC}"
+                        color="${NC}"
+                    fi
+                    echo -e "    $checkbox ${color}$flag${NC} - ${color}$desc${NC}"
+                fi
             fi
         done
         
@@ -263,14 +317,14 @@ show_check_options_menu() {
         # Read single character
         local key=""
         if [[ -c /dev/tty ]] && [[ -r /dev/tty ]]; then
-            # Read with timeout using read command
-            IFS= read -rs -t 0.1 -n1 key < /dev/tty 2>/dev/null || key=""
+            # Read character - cbreak mode allows Enter to be read as \n or \r
+            key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null || echo "")
         else
             # Fallback: read from stdin
             IFS= read -rs -t 0.1 -n1 key 2>/dev/null || key=""
         fi
         
-        # Skip if no key was read (timeout)
+        # Skip if no key was read
         if [[ -z "$key" ]]; then
             continue
         fi
@@ -316,15 +370,22 @@ show_check_options_menu() {
                 return
             fi
         elif [[ "$key" == " " ]]; then
-            # Space - toggle selection
-            if [[ ${selected[$current_index]} -eq 0 ]]; then
-                selected[$current_index]=1
-            else
-                selected[$current_index]=0
+            # Space - toggle selection (only if option is enabled)
+            local option="${options[$current_index]}"
+            local temp="${option#*:}"
+            temp="${temp#*:}"
+            local has_key="${temp##*:}"
+            
+            if [[ "$has_key" == "1" ]]; then
+                if [[ ${selected[$current_index]} -eq 0 ]]; then
+                    selected[$current_index]=1
+                else
+                    selected[$current_index]=0
+                fi
+                # Refresh menu to show updated selection
+                display_checkbox_menu
             fi
-            # Refresh menu to show updated selection
-            display_checkbox_menu
-        elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]]; then
+        elif [[ "$key" == "" ]] || [[ "$key" == $'\n' ]] || [[ "$key" == $'\r' ]] || [[ "$key" == $'\x0a' ]] || [[ "$key" == $'\x0d' ]] || [[ "$key" == $'\x0' ]]; then
             # Enter - confirm
             # Build selected flags string first
             local selected_flags=""
