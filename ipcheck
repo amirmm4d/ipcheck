@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# ipcheck - Advanced, parallel IP reputation checker v2.2.42
+# ipcheck - Advanced, parallel IP reputation checker v2.2.43
 #
 # This is the main entry point. All functions are loaded from lib/ directory.
 
 set -euo pipefail
 
 # Version
-IPCHECK_VERSION="2.2.42"
+IPCHECK_VERSION="2.2.43"
 
 # Determine script directory for loading lib files
 # If installed system-wide, use /usr/local/lib/ipcheck, otherwise use local lib/
