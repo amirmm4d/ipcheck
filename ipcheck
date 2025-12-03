@@ -72,8 +72,6 @@ declare -A USAGE_RESULTS
 # Load all library files
 # shellcheck source=lib/core.sh
 source "$LIB_DIR/core.sh"
-# shellcheck source=lib/menu_helpers.sh
-source "$LIB_DIR/menu_helpers.sh"
 # shellcheck source=lib/logging.sh
 source "$LIB_DIR/logging.sh"
 # shellcheck source=lib/api_calls.sh
@@ -96,12 +94,6 @@ source "$LIB_DIR/usage.sh"
 source "$LIB_DIR/suggestions.sh"
 # shellcheck source=lib/reporting.sh
 source "$LIB_DIR/reporting.sh"
-# shellcheck source=lib/menu_main.sh
-source "$LIB_DIR/menu_main.sh"
-# shellcheck source=lib/menu_ip_check.sh
-source "$LIB_DIR/menu_ip_check.sh"
-# shellcheck source=lib/menu_vpn.sh
-source "$LIB_DIR/menu_vpn.sh"
 # shellcheck source=lib/menu_process.sh
 source "$LIB_DIR/menu_process.sh"
 # shellcheck source=lib/main_logic.sh

@@ -836,7 +836,7 @@ do_install() {
                 echo -e "  ➡️  Downloading library files for '${YELLOW}ipcheck${NC}' from GitHub..."
                 local temp_lib
                 temp_lib=$(mktemp -d)
-                local lib_files=("core.sh" "menu_helpers.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_main.sh" "menu_ip_check.sh" "menu_vpn.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
+                local lib_files=("core.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
                 local download_success=true
                 for lib_file in "${lib_files[@]}"; do
                     if ! curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/lib/$lib_file" -o "$temp_lib/$lib_file" 2>/dev/null; then
@@ -899,7 +899,7 @@ do_install() {
                 echo -e "  ➡️  Downloading library files for '${YELLOW}ipcheck${NC}' from GitHub..."
                 local temp_lib
                 temp_lib=$(mktemp -d)
-                local lib_files=("core.sh" "menu_helpers.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_main.sh" "menu_ip_check.sh" "menu_vpn.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
+                local lib_files=("core.sh" "logging.sh" "api_calls.sh" "api_extended.sh" "scoring.sh" "cdn.sh" "routing.sh" "port_scan.sh" "reality.sh" "usage.sh" "suggestions.sh" "reporting.sh" "menu_process.sh" "main_logic.sh" "vpn.sh")
                 local download_success=true
                 for lib_file in "${lib_files[@]}"; do
                     if ! curl -fsSL "https://raw.githubusercontent.com/amirmm4d/ipcheck/main/lib/$lib_file" -o "$temp_lib/$lib_file" 2>/dev/null; then

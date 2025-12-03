@@ -38,9 +38,9 @@ usage() {
 }
 
 main() {
-    # If no arguments, show interactive menu
+    # If no arguments, show usage
     if [[ $# -eq 0 ]]; then
-        interactive_menu
+        usage
         exit 0
     fi
     

@@ -62,16 +62,6 @@ if [[ -f "$PROJECT_ROOT/man/ipcheck.1" ]]; then
     echo "  ✓ Updated man/ipcheck.1"
 fi
 
-# Update menu_main.sh
-if [[ -f "$PROJECT_ROOT/lib/menu_main.sh" ]]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "s/v\\\${IPCHECK_VERSION:-[0-9.]*}/v\\\${IPCHECK_VERSION:-$VERSION}/" "$PROJECT_ROOT/lib/menu_main.sh"
-    else
-        sed -i "s/v\\\${IPCHECK_VERSION:-[0-9.]*}/v\\\${IPCHECK_VERSION:-$VERSION}/" "$PROJECT_ROOT/lib/menu_main.sh"
-    fi
-    echo "  ✓ Updated lib/menu_main.sh"
-fi
-
 # Update ipcheck header comment
 if [[ -f "$IPCHECK_SCRIPT" ]]; then
     if [[ "$(uname)" == "Darwin" ]]; then
@@ -90,7 +80,6 @@ echo "  - ipcheck (source of truth: IPCHECK_VERSION=$VERSION)"
 echo "  - setup.sh (IPCHECK_SUITE_VERSION=$VERSION)"
 echo "  - README.md"
 echo "  - man/ipcheck.1"
-echo "  - lib/menu_main.sh"
 echo ""
 echo "Note: The installer (setup.sh) will automatically sync its version"
 echo "      from the ipcheck script during installation to ensure consistency."
