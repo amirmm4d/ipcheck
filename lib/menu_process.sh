@@ -14,6 +14,9 @@ process_main_args() {
     local enable_hosttracker=false
     local run_all_checks=true
     
+    # Reset VPN installation flag (will be set to true only if -v flag is provided)
+    ASK_VPN_INSTALL=false
+    
     # Pre-process arguments to handle combined flags
     local processed_args=()
     local i=0
@@ -58,7 +61,9 @@ process_main_args() {
             server_ip=$(get_server_ip)
             if [[ -n "$server_ip" ]]; then 
                 ips_to_check+=("$server_ip")
-                ASK_VPN_INSTALL=true
+                # Only set ASK_VPN_INSTALL=true if -v flag is explicitly provided
+                # Default is false (no VPN installation prompt)
+                # This will be set to true later if -v flag is found
             else
                 echo -e "${RED}Error: Could not determine server's public IP.${NC}" >&2
                 return 1
@@ -126,6 +131,23 @@ process_main_args() {
         -u) ENABLE_USAGE_HISTORY=true ;;
         -n) ENABLE_SUGGESTIONS=true ;;
         -v) ASK_VPN_INSTALL=true ;;
+        -A|--all)
+            # Enable all checks and all advanced features
+            enable_ipqs=true
+            enable_abuseipdb=true
+            enable_scamalytics=true
+            enable_ripe=true
+            enable_host=true
+            enable_hosttracker=true
+            ENABLE_SCORING=true
+            ENABLE_CDN_CHECK=true
+            ENABLE_ROUTING_CHECK=true
+            ENABLE_PORT_SCAN=true
+            ENABLE_REALITY_TEST=true
+            ENABLE_USAGE_HISTORY=true
+            ENABLE_SUGGESTIONS=true
+            run_all_checks=false
+            ;;
         -U) uninstall_ipcheck ;;
         -H|--help)
             usage

@@ -38,10 +38,33 @@ usage() {
 }
 
 main() {
-    # If no arguments, show usage
+    # If no arguments, run automatic full check on server IP
     if [[ $# -eq 0 ]]; then
-        usage
-        exit 0
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}🔍 Detecting server's public IP...${NC}"
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        
+        local server_ip
+        server_ip=$(get_server_ip)
+        
+        if [[ -z "$server_ip" ]]; then
+            echo -e "${RED}❌ Error: Could not determine server's public IP.${NC}" >&2
+            echo -e "${YELLOW}Please use: ipcheck -i <IP> or ipcheck -S${NC}" >&2
+            exit 1
+        fi
+        
+        echo -e "${GREEN}✓ Server's public IP: ${server_ip}${NC}"
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${YELLOW}Running full analysis with all available checks...${NC}"
+        echo -e "${YELLOW}Note: Checks requiring API keys will be skipped if keys are not configured.${NC}"
+        echo ""
+        
+        # Run with all features enabled, but VPN installation disabled
+        # -S: server IP, -A: all checks and all advanced features
+        # VPN installation is NOT requested (no -v flag)
+        process_main_args -S -A
+        exit $?
     fi
     
     # Pre-process arguments to handle combined flags like -gdt
