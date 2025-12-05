@@ -20,19 +20,6 @@ calculate_clean_score() {
     local bot_activity=0
     local is_datacenter=0
     
-    # Get IPQS data if available
-    local ip_dir="$STATUS_DIR/$(echo "$ip" | tr '.' '_')"
-    if [[ -f "$ip_dir/IPQualityScore" ]]; then
-        local ipqs_result
-        ipqs_result=$(<"$ip_dir/IPQualityScore")
-        local ipqs_status
-        ipqs_status=$(echo "$ipqs_result" | cut -d'|' -f2)
-        if [[ "$ipqs_status" =~ FAILED ]]; then
-            fraud_score=75  # High risk
-            proxy_score=50
-        fi
-    fi
-    
     # Get AbuseIPDB data
     if [[ -f "$ip_dir/AbuseIPDB" ]]; then
         local abuse_result

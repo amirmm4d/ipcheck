@@ -9,7 +9,6 @@ usage() {
     echo "  -S              Automatically check the public IP of this server."
     echo
     echo "Check Selection (if none specified, all available checks run):"
-    echo "  -q              Run IPQualityScore check"
     echo "  -a              Run AbuseIPDB check"
     echo "  -s              Run Scamalytics check"
     echo "  -r              Run RIPE Atlas check"

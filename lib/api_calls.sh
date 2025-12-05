@@ -1,42 +1,5 @@
 # --- Check Functions ---
 
-check_ipqs() {
-    local ip="$1" ip_dir="$2"
-    log_message "Checking IPQualityScore for $ip"
-    if [[ -z "${IPQS_KEY:-}" ]]; then
-        write_status "$ip_dir" "IPQualityScore" "${YELLOW}SKIPPED" "API key not set"
-        log_message "IPQualityScore skipped for $ip: API key not set"
-        return
-    fi
-    local resp
-    resp=$(curl --max-time 15 -sf "https://ipqualityscore.com/api/json/ip/$IPQS_KEY/$ip" || true)
-    if [[ -z "$resp" ]]; then
-        write_status "$ip_dir" "IPQualityScore" "${RED}ERROR" "Request failed"
-        log_message "IPQualityScore error for $ip: Request failed"
-        return
-    fi
-    # Save raw API response
-    echo "$resp" | jq . > "$ip_dir/raw_ipqs.json" 2>/dev/null || echo "$resp" > "$ip_dir/raw_ipqs.json"
-    log_message "IPQualityScore response for $ip: $resp"
-    local score proxy
-    # Validate JSON before parsing
-    if echo "$resp" | jq . >/dev/null 2>&1; then
-        score=$(jq -r '.fraud_score // "unknown"' <<<"$resp" 2>/dev/null || echo "unknown")
-        proxy=$(jq -r '.proxy // "false"' <<<"$resp" 2>/dev/null || echo "false")
-    else
-        score="unknown"
-        proxy="false"
-    fi
-    local details="Fraud Score: $score, Proxy: $proxy"
-    if [[ "$proxy" == "true" || "$score" =~ ^[0-9]+$ ]] && [[ "$score" -gt 75 ]]; then
-        write_status "$ip_dir" "IPQualityScore" "${RED}FAILED" "$details"
-        log_message "IPQualityScore FAILED for $ip: $details"
-    else
-        write_status "$ip_dir" "IPQualityScore" "${GREEN}PASSED" "$details"
-        log_message "IPQualityScore PASSED for $ip: $details"
-    fi
-}
-
 check_abuseipdb() {
     local ip="$1" ip_dir="$2"
     log_message "Checking AbuseIPDB for $ip"

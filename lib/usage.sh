@@ -26,17 +26,6 @@ check_usage_history() {
         fi
     fi
     
-    # Check IPQS for usage type
-    if [[ -f "$ip_dir/IPQualityScore" ]]; then
-        local ipqs_result
-        ipqs_result=$(<"$ip_dir/IPQualityScore")
-        local ipqs_details
-        ipqs_details=$(echo "$ipqs_result" | cut -d'|' -f3)
-        if echo "$ipqs_details" | grep -qi "proxy.*true"; then
-            proxy_detected=true
-        fi
-    fi
-    
     # Check Scamalytics for fraud history
     if [[ -f "$ip_dir/Scamalytics" ]]; then
         local scam_result

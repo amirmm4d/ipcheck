@@ -295,7 +295,6 @@ prompt_and_save_keys() {
     
     # Define all API keys with their descriptions and URLs
     local all_keys_info=(
-        "IPQS_KEY|IPQualityScore API Key|https://www.ipqualityscore.com/documentation/account/api-key|Required for IP reputation checks"
         "ABUSEIPDB_KEY|AbuseIPDB API Key|https://www.abuseipdb.com/account/api|Required for abuse database checks"
         "RIPE_KEY|RIPE Atlas API Key|https://atlas.ripe.net/apply/|Required for RIPE Atlas probe checks"
         "HT_KEY|HostTracker API Key|https://hosttracker.com/|Optional - for HostTracker checks"

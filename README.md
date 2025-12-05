@@ -12,7 +12,7 @@ IPCheck یک ابزار خط فرمان (CLI) قدرتمند و سریع است 
 ## ویژگی‌های کلیدی
 
 ### بررسی اعتبار IP
-- **چندین سرویس بررسی اعتبار**: پشتیبانی از IPQualityScore، AbuseIPDB، Scamalytics، RIPE Atlas، Check-Host، ipapi.co، ipregistry.io و Spamhaus
+- **چندین سرویس بررسی اعتبار**: پشتیبانی از AbuseIPDB، Scamalytics، RIPE Atlas، Check-Host، ipapi.co، ipregistry.io و Spamhaus (همه رایگان)
 - **بررسی موازی**: تمام بررسی‌ها به صورت همزمان اجرا می‌شوند برای سریع‌ترین نتایج
 - **بررسی انتخابی**: اجرای بررسی‌های خاص با استفاده از فلگ‌ها (-q, -a, -s, -r, -c, -h) یا اجرای همه به صورت پیش‌فرض
 - **امتیازدهی کیفیت IP**: تولید امتیاز Clean Score (0-100) با استفاده از معیارهای وزنی از چندین منبع
@@ -156,7 +156,7 @@ ipcheck -S -v
 
 **تمام فلگ‌ها تک حرفی برای راحتی:**
 - ورودی: `-i` (IPها), `-f` (فایل), `-S` (سرور)
-- بررسی‌ها: `-q` (IPQS), `-a` (AbuseIPDB), `-s` (Scamalytics), `-r` (RIPE), `-c` (Check-Host), `-h` (HostTracker)
+- بررسی‌ها: `-a` (AbuseIPDB), `-s` (Scamalytics), `-r` (RIPE), `-c` (Check-Host), `-h` (HostTracker)
 - پیشرفته: `-g` (امتیاز), `-d` (CDN), `-t` (مسیریابی), `-p` (اسکن پورت), `-R` (reality), `-u` (استفاده), `-n` (پیشنهادات)
 - خروجی: `-j` (JSON), `-F` (fail-if), `-l` (لاگ), `-L` (فرمت لاگ), `-v` (درخواست VPN)
 - خودکارسازی: `-A` یا `--all` (همه چک‌ها), `-y <type>` (نصب خودکار VPN), `--ally` (همه چک‌ها + نصب خودکار VPN)
@@ -206,9 +206,9 @@ ipcheck -i 8.8.8.8 -A
 
 **✅ بررسی‌های خاص:**
 ```bash
-ipcheck -i 8.8.8.8 -q -a -s
+ipcheck -i 8.8.8.8 -a -s
 ```
-فقط IPQualityScore، AbuseIPDB و Scamalytics را اجرا می‌کند.
+فقط AbuseIPDB و Scamalytics را اجرا می‌کند.
 
 ### ویژگی‌های پیشرفته
 
@@ -333,8 +333,8 @@ ipcheck -S -gdtR -l /var/log/ipcheck -L json
 
 **ترکیب بررسی‌های پایه و پیشرفته:**
 ```bash
-ipcheck -qasgdt -i 8.8.8.8
-# اجرای IPQS، AbuseIPDB، Scamalytics، به علاوه امتیازدهی، CDN و بررسی‌های مسیریابی
+ipcheck -asgdt -i 8.8.8.8
+# اجرای AbuseIPDB، Scamalytics، به علاوه امتیازدهی، CDN و بررسی‌های مسیریابی
 ```
 
 ## پیکربندی
@@ -346,8 +346,7 @@ ipcheck -qasgdt -i 8.8.8.8
 ~/.config/ipcheck/keys.conf
 ```
 
-**کلیدهای API پشتیبانی شده:**
-- `IPQS_KEY`: کلید API IPQualityScore - [دریافت کنید](https://www.ipqualityscore.com/)
+**کلیدهای API پشتیبانی شده (همه اختیاری):**
 - `ABUSEIPDB_KEY`: کلید API AbuseIPDB - [دریافت کنید](https://www.abuseipdb.com/account)
 - `RIPE_KEY`: کلید API RIPE Atlas - [دریافت کنید](https://atlas.ripe.net/apply/)
 - `HT_KEY`: کلید API HostTracker (اختیاری)
@@ -380,7 +379,7 @@ ipcheck -i 8.8.8.8 -j        # JSON (مخفف، همان -o json)
 
 **خروجی JSON/YAML/CSV/XML شامل:**
 - `clean_score`: امتیاز Clean Score کیفیت IP (0-100) - محاسبه شده از چندین منبع
-- `raw_data`: پاسخ‌های کامل API از تمام سرویس‌های بررسی شده (IPQualityScore، AbuseIPDB، Scamalytics و غیره)
+- `raw_data`: پاسخ‌های کامل API از تمام سرویس‌های بررسی شده (AbuseIPDB، Scamalytics و غیره)
 - `checks`: وضعیت و جزئیات برای هر بررسی
 - `overall_status`: PASSED یا FAILED
 - `failed_checks`: تعداد بررسی‌های ناموفق
@@ -502,7 +501,7 @@ IPCheck is a powerful and fast command-line (CLI) tool designed to check the rep
 ## Key Features
 
 ### Core IP Reputation
-- **Multiple IP Reputation Services**: Supports IPQualityScore, AbuseIPDB, Scamalytics, RIPE Atlas, Check-Host, ipapi.co, ipregistry.io, and Spamhaus
+- **Multiple IP Reputation Services**: Supports AbuseIPDB, Scamalytics, RIPE Atlas, Check-Host, ipapi.co, ipregistry.io, and Spamhaus (all free)
 - **Parallel Checks**: All checks run concurrently for fastest results
 - **Selective Checks**: Run specific checks using flags (-q, -a, -s, -r, -c, -h) or run all by default
 - **IP Quality Scoring**: Generate Clean Score (0-100) using weighted metrics from multiple sources
@@ -579,7 +578,7 @@ This menu provides:
 
 **All flags are single-letter for convenience:**
 - Input: `-i` (IPs), `-f` (file), `-S` (server)
-- Checks: `-q` (IPQS), `-a` (AbuseIPDB), `-s` (Scamalytics), `-r` (RIPE), `-c` (Check-Host), `-h` (HostTracker)
+- Checks: `-a` (AbuseIPDB), `-s` (Scamalytics), `-r` (RIPE), `-c` (Check-Host), `-h` (HostTracker)
 - Advanced: `-g` (score), `-d` (CDN), `-t` (routing), `-p` (port-scan), `-R` (reality), `-u` (usage), `-n` (suggestions)
 - Output: `-j` (JSON), `-F` (fail-if), `-l` (log), `-L` (log-format), `-v` (ask VPN)
 - Other: `-U` (uninstall), `-H` (help)
@@ -612,7 +611,7 @@ ipcheck -S
 
 **Run specific checks only:**
 ```bash
-ipcheck -i 8.8.8.8 -q -a -s
+ipcheck -i 8.8.8.8 -a -s
 ```
 
 ### Advanced Features
@@ -721,7 +720,7 @@ ipcheck -S -gdtR -l /var/log/ipcheck -L json
 **Combine basic and advanced checks:**
 ```bash
 ipcheck -qasgdt -i 8.8.8.8
-# Runs IPQS, AbuseIPDB, Scamalytics, plus scoring, CDN, and routing checks
+# Runs AbuseIPDB, Scamalytics, plus scoring, CDN, and routing checks
 ```
 
 ## Configuration
@@ -733,8 +732,7 @@ The setup script helps you create the configuration file for your API keys, loca
 ~/.config/ipcheck/keys.conf
 ```
 
-**Supported API keys:**
-- `IPQS_KEY`: IPQualityScore API key - [Get it here](https://www.ipqualityscore.com/)
+**Supported API keys (all optional):**
 - `ABUSEIPDB_KEY`: AbuseIPDB API key - [Get it here](https://www.abuseipdb.com/account)
 - `RIPE_KEY`: RIPE Atlas API key - [Get it here](https://atlas.ripe.net/apply/)
 - `HT_KEY`: HostTracker API key (optional)
@@ -767,7 +765,7 @@ When using structured output formats (`-j`, `-o json`, `-o yaml`, `-o csv`, `-o 
 
 **Structured Output (JSON/YAML/CSV/XML) includes:**
 - `clean_score`: IP Quality Clean Score (0-100) - calculated from multiple sources
-- `raw_data`: Complete API responses from all checked services (IPQualityScore, AbuseIPDB, Scamalytics, etc.)
+- `raw_data`: Complete API responses from all checked services (AbuseIPDB, Scamalytics, etc.)
 - `checks`: Status and details for each check
 - `overall_status`: PASSED or FAILED
 - `failed_checks`: Number of failed checks

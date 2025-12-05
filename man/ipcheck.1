@@ -5,7 +5,7 @@ ipcheck \- Advanced IP reputation checker with network analysis and VPN installe
 
 .SH SYNOPSIS
 .B ipcheck
-[\-i <IPs>] [\-f <path>] [\-S] [\-q] [\-a] [\-s] [\-r] [\-c] [\-h] [\-j] [\-F <N>] [\-l <DIR>] [\-L txt|json] [\-g] [\-d] [\-t] [\-p] [\-R] [\-u] [\-n] [\-v] [\-U] [\-H]
+[\-i <IPs>] [\-f <path>] [\-S] [\-a] [\-s] [\-r] [\-c] [\-h] [\-j] [\-F <N>] [\-l <DIR>] [\-L txt|json] [\-g] [\-d] [\-t] [\-p] [\-R] [\-u] [\-n] [\-v] [\-U] [\-H]
 
 .SH DESCRIPTION
 A comprehensive command-line tool to test IP addresses for blacklist, fraud, or block risks using multiple reputation APIs. Includes advanced features like IP quality scoring, CDN detection, routing health analysis, port scanning, Reality fingerprint testing, prior usage detection, and smart suggestions.
@@ -14,7 +14,7 @@ All checks run in parallel for fast results. When checking server IP with -S, au
 
 Flags can be combined: -gdt is equivalent to -g -d -t.
 
-If no check flags (-q, -a, -s, etc.) are specified, all available basic checks are run.
+If no check flags (-a, -s, etc.) are specified, all available basic checks are run.
 
 .SH INPUT OPTIONS
 .TP
@@ -28,9 +28,6 @@ Path to a file containing IP addresses (one per line).
 Automatically detect and check the server's public IP address. After successful check, prompts interactively for VPN installation if IP passes all tests.
 
 .SH CHECK SELECTION OPTIONS
-.TP
-.B -q
-Run IPQualityScore check (requires IPQS_KEY)
 .TP
 .B -a
 Run AbuseIPDB check (requires ABUSEIPDB_KEY)
@@ -67,7 +64,7 @@ Scan critical server ports (22, 80, 443, 8080, 8443, 53, 3389) to identify risk 
 Test Sing-box Reality fingerprint compatibility. Performs TLS handshake testing, SNI behavior analysis, MTU consistency testing, and HTTP/2 support detection. Outputs reality_test.json with suitability assessment. Requires openssl.
 .TP
 .B -u
-Check prior usage history to identify if IP was previously used for VPN, proxy, botnet, or spam. Analyzes data from AbuseIPDB, IPQS, Scamalytics, and WHOIS. Outputs usage_history.json with risk assessment.
+Check prior usage history to identify if IP was previously used for VPN, proxy, botnet, or spam. Analyzes data from AbuseIPDB, Scamalytics, and WHOIS. Outputs usage_history.json with risk assessment.
 .TP
 .B -n
 Generate smart suggestions based on all test results. Provides security recommendations, performance optimizations, CDN configuration suggestions, port security recommendations, and Reality configuration advice. Outputs suggestions.json.
@@ -107,7 +104,7 @@ Ask to install VPN after server check (interactive). When used with -S, prompts 
 .TP
 .B -A
 .B --all
-Run all checks and all advanced features. Equivalent to -qasrchgdtpRun. Enables all basic checks (IPQS, AbuseIPDB, Scamalytics, RIPE, Check-Host, HostTracker) and all advanced features (scoring, CDN detection, routing health, port scan, Reality test, usage history, suggestions).
+Run all checks and all advanced features. Equivalent to -asrchgdtpRun. Enables all basic checks (AbuseIPDB, Scamalytics, RIPE, Check-Host, HostTracker) and all advanced features (scoring, CDN detection, routing health, port scan, Reality test, usage history, suggestions).
 .TP
 .B -y <type>
 Auto-install VPN after server check (non-interactive). VPN type can be: singbox (default), xray, v2ray, shadowsocks, openvpn, or cisco. If type is not specified, defaults to singbox. Example: -y xray or -y singbox.
@@ -133,10 +130,7 @@ When checking server IP with -S flag, if all checks pass, the tool will:
 This feature requires root privileges and only works when checking a single server IP.
 
 .SH ENVIRONMENT VARIABLES
-API keys are loaded from ~/.config/ipcheck/keys.conf. The following keys are supported:
-.TP
-.B IPQS_KEY
-IPQualityScore API key (required for -q flag)
+API keys are loaded from ~/.config/ipcheck/keys.conf. The following keys are supported (all optional):
 .TP
 .B ABUSEIPDB_KEY
 AbuseIPDB API key (required for -a flag)
@@ -167,14 +161,9 @@ Structured JSON array of IP objects:
     "ip": "1.2.3.4",
     "clean_score": 85.5,
     "checks": {
-      "IPQualityScore": {
-        "status": "PASSED",
-        "details": "Fraud Score: 10, Proxy: false"
-      },
       ...
     },
-    "raw_data": {
-      "ipqs": { ... },
+      "raw_data": {
       "abuseipdb": { ... },
       "scamalytics": { ... },
       ...
@@ -328,7 +317,6 @@ ipcheck -f /path/to/ips.txt -g -j
 ~/.config/ipcheck/keys.conf
 Configuration file for API keys (permissions: 600). Contains API keys in format:
 .nf
-IPQS_KEY="your_key_here"
 ABUSEIPDB_KEY="your_key_here"
 .fi
 

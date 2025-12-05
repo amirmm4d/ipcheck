@@ -6,7 +6,6 @@ process_main_args() {
     local ips_to_check=()
     local output_format="table"
     local fail_threshold=1
-    local enable_ipqs=false
     local enable_abuseipdb=false
     local enable_scamalytics=false
     local enable_ripe=false
@@ -73,7 +72,6 @@ process_main_args() {
             shift
             continue  # Skip the general shift at the end
             ;;
-        -q) enable_ipqs=true; run_all_checks=false; shift ;;
         -a) enable_abuseipdb=true; run_all_checks=false; shift ;;
         -s) enable_scamalytics=true; run_all_checks=false; shift ;;
         -r) enable_ripe=true; run_all_checks=false; shift ;;
@@ -143,7 +141,6 @@ process_main_args() {
         -v) ASK_VPN_INSTALL=true; shift ;;
         -A|--all)
             # Enable all checks and all advanced features
-            enable_ipqs=true
             enable_abuseipdb=true
             enable_scamalytics=true
             enable_ripe=true
@@ -189,7 +186,6 @@ process_main_args() {
     
     # If no specific checks selected, run all
     if $run_all_checks; then
-        enable_ipqs=true
         enable_abuseipdb=true
         enable_scamalytics=true
         enable_ripe=true
@@ -212,7 +208,6 @@ process_main_args() {
         # Use set +e to ensure all checks run even if some fail
         set +e
         local pids=()
-        $enable_ipqs && check_ipqs "$ip" "$ip_dir" & pids+=($!)
         $enable_abuseipdb && check_abuseipdb "$ip" "$ip_dir" & pids+=($!)
         $enable_scamalytics && check_scamalytics "$ip" "$ip_dir" & pids+=($!)
         $enable_ripe && check_ripe "$ip" "$ip_dir" & pids+=($!)
