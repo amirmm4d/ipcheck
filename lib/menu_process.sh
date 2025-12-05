@@ -25,11 +25,15 @@ process_main_args() {
     local processed_args=()
     local i=0
     local args_array=("$@")
+    echo "DEBUG: Original args: ${args_array[*]}" >&2
     while [[ $i -lt ${#args_array[@]} ]]; do
         local arg="${args_array[$i]}"
         local next_arg="${args_array[$((i+1))]:-}"
         
-        if [[ "$arg" =~ ^-[a-zA-Z]{2,}$ ]] && [[ ! "$next_arg" =~ ^[0-9]+$ ]]; then
+        # Don't split -A or --all (they are special flags, not combined flags)
+        if [[ "$arg" == "-A" ]] || [[ "$arg" == "--all" ]]; then
+            processed_args+=("$arg")
+        elif [[ "$arg" =~ ^-[a-zA-Z]{2,}$ ]] && [[ ! "$next_arg" =~ ^[0-9]+$ ]]; then
             local flags="${arg#-}"
             for (( j=0; j<${#flags}; j++ )); do
                 processed_args+=("-${flags:$j:1}")
@@ -40,6 +44,7 @@ process_main_args() {
         ((i++))
     done
     
+    echo "DEBUG: Processed args: ${processed_args[*]}" >&2
     set -- "${processed_args[@]}"
     
     # Now process arguments (same as main function)
@@ -72,12 +77,13 @@ process_main_args() {
                 echo -e "${RED}Error: Could not determine server's public IP.${NC}" >&2
                 return 1
             fi
+            shift  # Shift the -S flag
             ;;
-        -q) enable_ipqs=true; run_all_checks=false ;;
-        -a) enable_abuseipdb=true; run_all_checks=false ;;
-        -s) enable_scamalytics=true; run_all_checks=false ;;
-        -r) enable_ripe=true; run_all_checks=false ;;
-        -c) enable_host=true; run_all_checks=false ;;
+        -q) enable_ipqs=true; run_all_checks=false; shift ;;
+        -a) enable_abuseipdb=true; run_all_checks=false; shift ;;
+        -s) enable_scamalytics=true; run_all_checks=false; shift ;;
+        -r) enable_ripe=true; run_all_checks=false; shift ;;
+        -c) enable_host=true; run_all_checks=false; shift ;;
         -h)
             if [[ $# -eq 1 ]] && [[ ${#ips_to_check[@]} -eq 0 ]]; then
                 usage
@@ -86,8 +92,9 @@ process_main_args() {
                 enable_hosttracker=true
                 run_all_checks=false
             fi
+            shift
             ;;
-        -j) output_format="json" ;;
+        -j) output_format="json"; shift ;;
         -o|--output)
             case "$2" in
                 json|yaml|csv|xml|table)
@@ -127,16 +134,17 @@ process_main_args() {
             fi
             shift 2  # Shift both -L and the format value
             ;;
-        -g) ENABLE_SCORING=true ;;
-        -d) ENABLE_CDN_CHECK=true ;;
-        -t) ENABLE_ROUTING_CHECK=true ;;
-        -p) ENABLE_PORT_SCAN=true ;;
-        -R) ENABLE_REALITY_TEST=true ;;
-        -u) ENABLE_USAGE_HISTORY=true ;;
-        -n) ENABLE_SUGGESTIONS=true ;;
-        -v) ASK_VPN_INSTALL=true ;;
+        -g) ENABLE_SCORING=true; shift ;;
+        -d) ENABLE_CDN_CHECK=true; shift ;;
+        -t) ENABLE_ROUTING_CHECK=true; shift ;;
+        -p) ENABLE_PORT_SCAN=true; shift ;;
+        -R) ENABLE_REALITY_TEST=true; shift ;;
+        -u) ENABLE_USAGE_HISTORY=true; shift ;;
+        -n) ENABLE_SUGGESTIONS=true; shift ;;
+        -v) ASK_VPN_INSTALL=true; shift ;;
         -A|--all)
             # Enable all checks and all advanced features
+            echo "DEBUG: Parsing -A|--all flag" >&2
             enable_ipqs=true
             enable_abuseipdb=true
             enable_scamalytics=true
@@ -151,8 +159,13 @@ process_main_args() {
             ENABLE_USAGE_HISTORY=true
             ENABLE_SUGGESTIONS=true
             run_all_checks=false
+            echo "DEBUG: After -A: ENABLE_SCORING=$ENABLE_SCORING, ENABLE_CDN_CHECK=$ENABLE_CDN_CHECK" >&2
+            shift  # Shift the -A|--all flag
             ;;
-        -U) uninstall_ipcheck ;;
+        -U) 
+            uninstall_ipcheck
+            shift  # Shift the -U flag
+            ;;
         -H|--help)
             usage
             return 0
@@ -163,7 +176,6 @@ process_main_args() {
             return 1
             ;;
         esac
-        shift
     done
     
     # Continue with main execution logic
