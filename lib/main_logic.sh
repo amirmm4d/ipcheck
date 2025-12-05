@@ -61,10 +61,22 @@ main() {
         echo ""
         
         # Run with all features enabled, but VPN installation disabled
-        # -S: server IP, -A: all checks and all advanced features
+        # Use -i to pass the IP directly instead of -S (which would call get_server_ip again)
+        # -A: all checks and all advanced features
         # VPN installation is NOT requested (no -v flag)
-        process_main_args -S -A
-        exit $?
+        # Temporarily disable exit on error to allow process_main_args to handle errors gracefully
+        set +e
+        process_main_args -i "$server_ip" -A
+        local exit_code=$?
+        set -e
+        
+        # If process_main_args returned an error, exit with that code
+        if [[ $exit_code -ne 0 ]]; then
+            exit $exit_code
+        fi
+        
+        # Otherwise, exit successfully
+        exit 0
     fi
     
     # Pre-process arguments to handle combined flags like -gdt

@@ -44,7 +44,7 @@ process_main_args() {
         -i)
             IFS=',' read -ra ADDR <<<"$2"
             for ip in "${ADDR[@]}"; do ips_to_check+=("$ip"); done
-            shift
+            shift 2  # Shift both -i and the IP argument
             ;;
         -f)
             if [[ -f "$2" ]]; then
@@ -54,7 +54,7 @@ process_main_args() {
                 echo -e "${RED}Error: File not found at '$2'${NC}" >&2
                 return 1
             fi
-            shift
+            shift 2  # Shift both -f and the file path argument
             ;;
         -S)
             local server_ip
@@ -94,7 +94,7 @@ process_main_args() {
                     return 1
                     ;;
             esac
-            shift
+            shift 2  # Shift both -o/--output and the format value
             ;;
         -F)
             fail_threshold="$2"
@@ -102,7 +102,7 @@ process_main_args() {
                 echo -e "${RED}Error: -F requires a number.${NC}"
                 return 1
             fi
-            shift
+            shift 2  # Shift both -F and the threshold value
             ;;
         -l)
             LOG_DIR="$2"
@@ -113,7 +113,7 @@ process_main_args() {
                 }
             fi
             log_message "Logging enabled: $LOG_DIR" "INFO"
-            shift
+            shift 2  # Shift both -l and the directory path
             ;;
         -L)
             LOG_FORMAT="$2"
@@ -121,7 +121,7 @@ process_main_args() {
                 echo -e "${RED}Error: -L must be 'txt' or 'json'.${NC}" >&2
                 return 1
             fi
-            shift
+            shift 2  # Shift both -L and the format value
             ;;
         -g) ENABLE_SCORING=true ;;
         -d) ENABLE_CDN_CHECK=true ;;
