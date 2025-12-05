@@ -191,6 +191,8 @@ process_main_args() {
         mkdir -p "$ip_dir"
         
         # Run enabled checks in parallel
+        # Use set +e to ensure all checks run even if some fail
+        set +e
         local pids=()
         $enable_ipqs && check_ipqs "$ip" "$ip_dir" & pids+=($!)
         $enable_abuseipdb && check_abuseipdb "$ip" "$ip_dir" & pids+=($!)
@@ -210,15 +212,20 @@ process_main_args() {
         for pid in "${pids[@]}"; do
             wait "$pid" || true
         done
+        # Restore error handling
+        set -e
         
         # Run advanced features (sequential, as they may depend on previous results)
+        # Use set +e to ensure all checks run even if some fail
+        set +e
+        
         if $ENABLE_CDN_CHECK; then
-            detect_cdn "$ip" "$ip_dir"
+            detect_cdn "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_SCORING; then
-            generate_score_report "$ip"
-            generate_abuse_report "$ip" "$ip_dir"
+            generate_score_report "$ip" || true
+            generate_abuse_report "$ip" "$ip_dir" || true
         fi
         
         # Auto-enable scoring for server check to show score before VPN question
@@ -232,28 +239,31 @@ process_main_args() {
                     wait "$pid" || true
                 done
             fi
-            generate_score_report "$ip"
+            generate_score_report "$ip" || true
         fi
         
         if $ENABLE_ROUTING_CHECK; then
-            test_routing "$ip" "$ip_dir"
+            test_routing "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_PORT_SCAN; then
-            scan_ports "$ip" "$ip_dir"
+            scan_ports "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_REALITY_TEST; then
-            test_reality_fingerprint "$ip" "$ip_dir"
+            test_reality_fingerprint "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_USAGE_HISTORY; then
-            check_usage_history "$ip" "$ip_dir"
+            check_usage_history "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_SUGGESTIONS; then
-            generate_suggestions "$ip" "$ip_dir"
+            generate_suggestions "$ip" "$ip_dir" || true
         fi
+        
+        # Restore error handling
+        set -e
         
         printf "${GREEN}✅ [%d/%d] Done: %s${NC}\n" "$current_ip_num" "$total_ips" "$ip"
     done

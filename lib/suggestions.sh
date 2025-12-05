@@ -148,5 +148,13 @@ generate_suggestions() {
     
     echo "$suggestions_json" > "$ip_dir/suggestions.json"
     log_message "Generated ${#suggestions[@]} suggestions for $ip" "INFO"
+    
+    # Write status for reporting
+    local details="Generated ${#suggestions[@]} suggestions"
+    if [[ ${#suggestions[@]} -eq 0 ]]; then
+        write_status "$ip_dir" "Suggestions" "${GREEN}NONE" "No suggestions available"
+    else
+        write_status "$ip_dir" "Suggestions" "${GREEN}GENERATED" "$details"
+    fi
 }
 
