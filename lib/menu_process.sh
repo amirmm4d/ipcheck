@@ -143,7 +143,6 @@ process_main_args() {
         -v) ASK_VPN_INSTALL=true; shift ;;
         -A|--all)
             # Enable all checks and all advanced features
-            echo "DEBUG: Parsing -A|--all flag" >&2
             enable_ipqs=true
             enable_abuseipdb=true
             enable_scamalytics=true
@@ -158,7 +157,6 @@ process_main_args() {
             ENABLE_USAGE_HISTORY=true
             ENABLE_SUGGESTIONS=true
             run_all_checks=false
-            echo "DEBUG: After -A: ENABLE_SCORING=$ENABLE_SCORING, ENABLE_CDN_CHECK=$ENABLE_CDN_CHECK, ENABLE_ROUTING_CHECK=$ENABLE_ROUTING_CHECK" >&2
             shift
             continue  # Skip the general shift at the end
             ;;
@@ -238,8 +236,6 @@ process_main_args() {
         # Run advanced features (sequential, as they may depend on previous results)
         # Use set +e to ensure all checks run even if some fail
         set +e
-        
-        echo "DEBUG: Advanced features - CDN=$ENABLE_CDN_CHECK, Scoring=$ENABLE_SCORING, Routing=$ENABLE_ROUTING_CHECK, Port=$ENABLE_PORT_SCAN, Reality=$ENABLE_REALITY_TEST, Usage=$ENABLE_USAGE_HISTORY, Suggestions=$ENABLE_SUGGESTIONS" >&2
         
         if $ENABLE_CDN_CHECK; then
             detect_cdn "$ip" "$ip_dir" || true

@@ -70,7 +70,27 @@ detect_cdn() {
     echo "$cdn_json" > "$ip_dir/cdn_status.json"
     CDN_RESULTS["$ip"]="$cdn_json"
     
-    local details="Provider: $cdn_provider, ASN: $asn_info"
+    # Build details string with proper fallbacks
+    local details=""
+    if [[ -n "$cdn_provider" ]]; then
+        details="Provider: $cdn_provider"
+    else
+        details="Provider: None"
+    fi
+    if [[ -n "$asn_info" ]] && [[ "$asn_info" != "unknown" ]]; then
+        details="$details, ASN: $asn_info"
+    else
+        # Try to get ASN from reverse DNS or other sources
+        if [[ -z "$asn_info" ]] || [[ "$asn_info" == "unknown" ]]; then
+            # Try to extract ASN from reverse DNS if available
+            if [[ -n "$reverse_dns" ]]; then
+                details="$details, RDNS: $reverse_dns"
+            else
+                details="$details, ASN: N/A"
+            fi
+        fi
+    fi
+    
     if [[ "$cdn_detected" != "none" ]]; then
         write_status "$ip_dir" "CDN_Detection" "${YELLOW}DETECTED" "$details"
         log_message "CDN detected for $ip: $cdn_provider" "INFO"

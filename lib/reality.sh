@@ -20,11 +20,17 @@ test_reality_fingerprint() {
     log_message "Testing TLS handshake" "DEBUG"
     local tls_test
     tls_test=$(timeout 10 openssl s_client -connect "$ip:443" -servername "www.google.com" </dev/null 2>&1 || echo "")
-    if echo "$tls_test" | grep -qi "verify error\|handshake failure\|connection refused"; then
+    if [[ -z "$tls_test" ]]; then
+        ((tls_errors++))
+        log_message "TLS test failed: No response" "WARN"
+    elif echo "$tls_test" | grep -qi "verify error\|handshake failure\|connection refused\|Connection refused\|No route to host"; then
         ((tls_errors++))
         log_message "TLS errors detected" "WARN"
-    else
+    elif echo "$tls_test" | grep -qi "Verify return code: 0\|New, TLSv"; then
         log_message "TLS handshake successful" "INFO"
+    else
+        # If we get some response but it's unclear, assume it's OK (many servers don't have valid certs)
+        log_message "TLS test completed (unclear result, assuming OK)" "DEBUG"
     fi
     
     # Test SNI behavior
@@ -83,13 +89,18 @@ test_reality_fingerprint() {
     echo "$reality_json" > "$ip_dir/reality_test.json"
     REALITY_RESULTS["$ip"]="$reality_json"
     
-    local details="TLS OK: $((tls_errors == 0)), MTU: $mtu_consistent, SNI: $sni_works"
+    # Build details string with proper boolean display
+    local tls_ok="false"
+    if [[ $tls_errors -eq 0 ]]; then
+        tls_ok="true"
+    fi
+    local details="TLS OK: $tls_ok, MTU: $mtu_consistent, SNI: $sni_works"
     if [[ $tls_errors -eq 0 ]] && [[ "$mtu_consistent" == "true" ]]; then
         write_status "$ip_dir" "Reality_Test" "${GREEN}SUITABLE" "$details"
         log_message "Reality test: IP is suitable for Sing-box Reality" "INFO"
     else
         write_status "$ip_dir" "Reality_Test" "${YELLOW}ISSUES" "$details"
-        log_message "Reality test: IP has some issues" "WARN"
+        log_message "Reality test: IP has some issues (TLS errors: $tls_errors, MTU: $mtu_consistent)" "WARN"
     fi
 }
 

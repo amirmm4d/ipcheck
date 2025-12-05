@@ -4,10 +4,17 @@ check_ipapi() {
     local ip="$1" ip_dir="$2"
     log_message "Checking ipapi.co for $ip"
     local resp
-    resp=$(curl --max-time 15 -sf "https://ipapi.co/$ip/json/" || true)
-    if [[ -z "$resp" ]]; then
-        write_status "$ip_dir" "ipapi" "${RED}ERROR" "Request failed"
-        log_message "ipapi error for $ip: Request failed"
+    local curl_exit_code=0
+    resp=$(curl --max-time 15 -sf "https://ipapi.co/$ip/json/" 2>&1) || curl_exit_code=$?
+    if [[ -z "$resp" ]] || [[ $curl_exit_code -ne 0 ]]; then
+        local error_msg="Request failed"
+        if [[ -n "$resp" ]] && echo "$resp" | grep -qi "rate limit\|too many"; then
+            error_msg="Rate limited"
+        elif [[ -n "$resp" ]] && echo "$resp" | grep -qi "invalid\|not found"; then
+            error_msg="Invalid IP or not found"
+        fi
+        write_status "$ip_dir" "ipapi" "${RED}ERROR" "$error_msg"
+        log_message "ipapi error for $ip: $error_msg (curl exit: $curl_exit_code)"
         return
     fi
     # Save raw API response
@@ -49,10 +56,19 @@ check_ipregistry() {
         url="https://api.ipregistry.co/$ip"
     fi
     local resp
-    resp=$(curl --max-time 15 -sf "$url" || true)
-    if [[ -z "$resp" ]]; then
-        write_status "$ip_dir" "ipregistry" "${RED}ERROR" "Request failed"
-        log_message "ipregistry error for $ip: Request failed"
+    local curl_exit_code=0
+    resp=$(curl --max-time 15 -sf "$url" 2>&1) || curl_exit_code=$?
+    if [[ -z "$resp" ]] || [[ $curl_exit_code -ne 0 ]]; then
+        local error_msg="Request failed"
+        if [[ -n "$resp" ]] && echo "$resp" | grep -qi "rate limit\|quota\|too many"; then
+            error_msg="Rate limited (API key may be required)"
+        elif [[ -n "$resp" ]] && echo "$resp" | grep -qi "invalid\|not found"; then
+            error_msg="Invalid IP or not found"
+        elif [[ -z "$api_key" ]] && echo "$resp" | grep -qi "unauthorized\|forbidden"; then
+            error_msg="API key required"
+        fi
+        write_status "$ip_dir" "ipregistry" "${RED}ERROR" "$error_msg"
+        log_message "ipregistry error for $ip: $error_msg (curl exit: $curl_exit_code)"
         return
     fi
     # Save raw API response
