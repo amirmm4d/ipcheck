@@ -17,23 +17,15 @@ process_main_args() {
     # Reset VPN installation flag (will be set to true only if -v flag is provided)
     ASK_VPN_INSTALL=false
     
-    # Note: ENABLE_* flags are global variables defined in ipcheck
-    # They will be set by -A flag or individual flags (-g, -d, -t, etc.)
-    # We don't reset them here to preserve their state from previous calls
-    
     # Pre-process arguments to handle combined flags
     local processed_args=()
     local i=0
     local args_array=("$@")
-    echo "DEBUG: Original args: ${args_array[*]}" >&2
     while [[ $i -lt ${#args_array[@]} ]]; do
         local arg="${args_array[$i]}"
         local next_arg="${args_array[$((i+1))]:-}"
         
-        # Don't split -A or --all (they are special flags, not combined flags)
-        if [[ "$arg" == "-A" ]] || [[ "$arg" == "--all" ]]; then
-            processed_args+=("$arg")
-        elif [[ "$arg" =~ ^-[a-zA-Z]{2,}$ ]] && [[ ! "$next_arg" =~ ^[0-9]+$ ]]; then
+        if [[ "$arg" =~ ^-[a-zA-Z]{2,}$ ]] && [[ ! "$next_arg" =~ ^[0-9]+$ ]]; then
             local flags="${arg#-}"
             for (( j=0; j<${#flags}; j++ )); do
                 processed_args+=("-${flags:$j:1}")
@@ -44,7 +36,6 @@ process_main_args() {
         ((i++))
     done
     
-    echo "DEBUG: Processed args: ${processed_args[*]}" >&2
     set -- "${processed_args[@]}"
     
     # Now process arguments (same as main function)
@@ -54,6 +45,7 @@ process_main_args() {
             IFS=',' read -ra ADDR <<<"$2"
             for ip in "${ADDR[@]}"; do ips_to_check+=("$ip"); done
             shift 2  # Shift both -i and the IP argument
+            continue  # Skip the general shift at the end
             ;;
         -f)
             if [[ -f "$2" ]]; then
@@ -64,6 +56,7 @@ process_main_args() {
                 return 1
             fi
             shift 2  # Shift both -f and the file path argument
+            continue  # Skip the general shift at the end
             ;;
         -S)
             local server_ip
@@ -77,7 +70,8 @@ process_main_args() {
                 echo -e "${RED}Error: Could not determine server's public IP.${NC}" >&2
                 return 1
             fi
-            shift  # Shift the -S flag
+            shift
+            continue  # Skip the general shift at the end
             ;;
         -q) enable_ipqs=true; run_all_checks=false; shift ;;
         -a) enable_abuseipdb=true; run_all_checks=false; shift ;;
@@ -93,6 +87,7 @@ process_main_args() {
                 run_all_checks=false
             fi
             shift
+            continue  # Skip the general shift at the end
             ;;
         -j) output_format="json"; shift ;;
         -o|--output)
@@ -106,6 +101,7 @@ process_main_args() {
                     ;;
             esac
             shift 2  # Shift both -o/--output and the format value
+            continue  # Skip the general shift at the end
             ;;
         -F)
             fail_threshold="$2"
@@ -114,6 +110,7 @@ process_main_args() {
                 return 1
             fi
             shift 2  # Shift both -F and the threshold value
+            continue  # Skip the general shift at the end
             ;;
         -l)
             LOG_DIR="$2"
@@ -125,6 +122,7 @@ process_main_args() {
             fi
             log_message "Logging enabled: $LOG_DIR" "INFO"
             shift 2  # Shift both -l and the directory path
+            continue  # Skip the general shift at the end
             ;;
         -L)
             LOG_FORMAT="$2"
@@ -133,6 +131,7 @@ process_main_args() {
                 return 1
             fi
             shift 2  # Shift both -L and the format value
+            continue  # Skip the general shift at the end
             ;;
         -g) ENABLE_SCORING=true; shift ;;
         -d) ENABLE_CDN_CHECK=true; shift ;;
@@ -159,12 +158,14 @@ process_main_args() {
             ENABLE_USAGE_HISTORY=true
             ENABLE_SUGGESTIONS=true
             run_all_checks=false
-            echo "DEBUG: After -A: ENABLE_SCORING=$ENABLE_SCORING, ENABLE_CDN_CHECK=$ENABLE_CDN_CHECK" >&2
-            shift  # Shift the -A|--all flag
+            echo "DEBUG: After -A: ENABLE_SCORING=$ENABLE_SCORING, ENABLE_CDN_CHECK=$ENABLE_CDN_CHECK, ENABLE_ROUTING_CHECK=$ENABLE_ROUTING_CHECK" >&2
+            shift
+            continue  # Skip the general shift at the end
             ;;
         -U) 
             uninstall_ipcheck
-            shift  # Shift the -U flag
+            shift
+            continue  # Skip the general shift at the end
             ;;
         -H|--help)
             usage
@@ -176,6 +177,9 @@ process_main_args() {
             return 1
             ;;
         esac
+        # This shift should never be reached due to continue statements above
+        # But kept as safety fallback for any case that doesn't shift
+        shift
     done
     
     # Continue with main execution logic
@@ -218,14 +222,10 @@ process_main_args() {
         $enable_hosttracker && check_hosttracker "$ip" "$ip_dir" & pids+=($!)
         
         # Additional API checks for scoring
-        echo "DEBUG: ENABLE_SCORING=$ENABLE_SCORING" >&2
         if $ENABLE_SCORING; then
-            log_message "Running scoring API checks for $ip" "DEBUG"
             check_ipapi "$ip" "$ip_dir" & pids+=($!)
             check_ipregistry "$ip" "$ip_dir" & pids+=($!)
             check_spamhaus "$ip" "$ip_dir" & pids+=($!)
-        else
-            log_message "Scoring disabled, skipping ipapi/ipregistry/spamhaus checks" "DEBUG"
         fi
         
         # Wait for all checks to complete
@@ -239,17 +239,13 @@ process_main_args() {
         # Use set +e to ensure all checks run even if some fail
         set +e
         
-        # Debug: Log which advanced features are enabled
         echo "DEBUG: Advanced features - CDN=$ENABLE_CDN_CHECK, Scoring=$ENABLE_SCORING, Routing=$ENABLE_ROUTING_CHECK, Port=$ENABLE_PORT_SCAN, Reality=$ENABLE_REALITY_TEST, Usage=$ENABLE_USAGE_HISTORY, Suggestions=$ENABLE_SUGGESTIONS" >&2
-        log_message "Advanced features enabled: CDN=$ENABLE_CDN_CHECK, Scoring=$ENABLE_SCORING, Routing=$ENABLE_ROUTING_CHECK, Port=$ENABLE_PORT_SCAN, Reality=$ENABLE_REALITY_TEST, Usage=$ENABLE_USAGE_HISTORY, Suggestions=$ENABLE_SUGGESTIONS" "DEBUG"
         
         if $ENABLE_CDN_CHECK; then
-            log_message "Running CDN detection for $ip" "DEBUG"
             detect_cdn "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_SCORING; then
-            log_message "Running scoring for $ip" "DEBUG"
             generate_score_report "$ip" || true
             generate_abuse_report "$ip" "$ip_dir" || true
         fi
@@ -269,27 +265,22 @@ process_main_args() {
         fi
         
         if $ENABLE_ROUTING_CHECK; then
-            log_message "Running routing check for $ip" "DEBUG"
             test_routing "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_PORT_SCAN; then
-            log_message "Running port scan for $ip" "DEBUG"
             scan_ports "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_REALITY_TEST; then
-            log_message "Running reality test for $ip" "DEBUG"
             test_reality_fingerprint "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_USAGE_HISTORY; then
-            log_message "Running usage history check for $ip" "DEBUG"
             check_usage_history "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_SUGGESTIONS; then
-            log_message "Running suggestions generation for $ip" "DEBUG"
             generate_suggestions "$ip" "$ip_dir" || true
         fi
         
