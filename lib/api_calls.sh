@@ -318,14 +318,170 @@ check_host() {
 
 check_hosttracker() {
     local ip="$1" ip_dir="$2"
-    log_message "Checking HostTracker for $ip"
+    
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}🔍 Testing HostTracker API for $ip${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    log_message "Checking HostTracker for $ip" "INFO"
+    
+    # Check if API key is set
     if [[ -z "${HT_KEY:-}" ]]; then
-        write_status "$ip_dir" "HostTracker" "${YELLOW}SKIPPED" "API key not set"
-        log_message "HostTracker skipped for $ip: API key not set"
-        return
+        echo -e "${YELLOW}⚠️  API key (HT_KEY) not set${NC}"
+        echo -e "${YELLOW}   Testing without API key to see what endpoints are available...${NC}"
+        log_message "HostTracker: API key not set, testing without key" "WARN"
+    else
+        echo -e "${GREEN}✓ API key found: ${HT_KEY:0:10}...${NC}"
+        log_message "HostTracker: API key found" "INFO"
     fi
-    # HostTracker API endpoint unknown - placeholder implementation
-    write_status "$ip_dir" "HostTracker" "${YELLOW}SKIPPED" "API endpoint not available"
-    log_message "HostTracker skipped for $ip: API endpoint not available"
+    
+    echo ""
+    
+    # Test different possible API endpoints
+    local endpoints=(
+        "https://www.host-tracker.com/api/web/v1/check?ip=${ip}"
+        "https://api.host-tracker.com/v1/check?ip=${ip}"
+        "https://www.host-tracker.com/api/check?ip=${ip}"
+        "https://api.host-tracker.com/check?ip=${ip}"
+        "https://www.host-tracker.com/api/web/check?ip=${ip}"
+    )
+    
+    local api_key="${HT_KEY:-}"
+    local found_working=false
+    local last_error=""
+    
+    for endpoint in "${endpoints[@]}"; do
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}Testing endpoint: ${endpoint}${NC}"
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        
+        log_message "Testing HostTracker endpoint: $endpoint" "DEBUG"
+        
+        local resp=""
+        local curl_exit_code=0
+        local headers=()
+        
+        # Build headers
+        if [[ -n "$api_key" ]]; then
+            headers+=("-H" "Authorization: Bearer $api_key")
+            headers+=("-H" "X-API-Key: $api_key")
+            headers+=("-H" "API-Key: $api_key")
+        fi
+        
+        # Try with Authorization header
+        if [[ -n "$api_key" ]]; then
+            echo -e "${YELLOW}  Trying with Authorization: Bearer header...${NC}"
+            resp=$(curl --max-time 15 -sf -H "Accept: application/json" \
+                -H "Authorization: Bearer $api_key" \
+                "$endpoint" 2>&1) || curl_exit_code=$?
+            
+            if [[ $curl_exit_code -eq 0 ]] && [[ -n "$resp" ]]; then
+                echo -e "${GREEN}  ✓ Got response with Bearer auth${NC}"
+                log_message "HostTracker: Got response with Bearer auth" "INFO"
+            else
+                echo -e "${YELLOW}  ⚠️  Bearer auth failed (exit: $curl_exit_code)${NC}"
+                log_message "HostTracker: Bearer auth failed, exit code: $curl_exit_code" "DEBUG"
+            fi
+        fi
+        
+        # Try with X-API-Key header
+        if [[ -z "$resp" ]] || [[ $curl_exit_code -ne 0 ]]; then
+            if [[ -n "$api_key" ]]; then
+                echo -e "${YELLOW}  Trying with X-API-Key header...${NC}"
+                resp=$(curl --max-time 15 -sf -H "Accept: application/json" \
+                    -H "X-API-Key: $api_key" \
+                    "$endpoint" 2>&1) || curl_exit_code=$?
+                
+                if [[ $curl_exit_code -eq 0 ]] && [[ -n "$resp" ]]; then
+                    echo -e "${GREEN}  ✓ Got response with X-API-Key${NC}"
+                    log_message "HostTracker: Got response with X-API-Key" "INFO"
+                else
+                    echo -e "${YELLOW}  ⚠️  X-API-Key failed (exit: $curl_exit_code)${NC}"
+                    log_message "HostTracker: X-API-Key failed, exit code: $curl_exit_code" "DEBUG"
+                fi
+            fi
+        fi
+        
+        # Try without API key
+        if [[ -z "$resp" ]] || [[ $curl_exit_code -ne 0 ]]; then
+            echo -e "${YELLOW}  Trying without API key...${NC}"
+            resp=$(curl --max-time 15 -sf -H "Accept: application/json" \
+                "$endpoint" 2>&1) || curl_exit_code=$?
+            
+            if [[ $curl_exit_code -eq 0 ]] && [[ -n "$resp" ]]; then
+                echo -e "${GREEN}  ✓ Got response without API key${NC}"
+                log_message "HostTracker: Got response without API key" "INFO"
+            else
+                echo -e "${YELLOW}  ⚠️  No API key request failed (exit: $curl_exit_code)${NC}"
+                log_message "HostTracker: No API key request failed, exit code: $curl_exit_code" "DEBUG"
+            fi
+        fi
+        
+        # Display response
+        echo ""
+        echo -e "${BLUE}Response (curl exit code: $curl_exit_code):${NC}"
+        if [[ -n "$resp" ]]; then
+            echo "$resp" | head -50
+            echo ""
+            
+            # Save raw response
+            echo "$resp" > "$ip_dir/raw_hosttracker_${endpoint//\//_}.txt" 2>/dev/null || true
+            
+            # Try to parse as JSON
+            if echo "$resp" | jq . >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Valid JSON response${NC}"
+                echo "$resp" | jq . | head -30
+                echo "$resp" | jq . > "$ip_dir/raw_hosttracker_${endpoint//\//_}.json" 2>/dev/null || true
+                log_message "HostTracker: Valid JSON response received" "INFO"
+                found_working=true
+                last_error=""
+                break
+            else
+                echo -e "${YELLOW}⚠️  Response is not valid JSON${NC}"
+                log_message "HostTracker: Response is not valid JSON" "WARN"
+                
+                # Check for common error messages
+                if echo "$resp" | grep -qi "unauthorized\|forbidden\|401\|403"; then
+                    last_error="Authentication required"
+                    echo -e "${RED}  ❌ Authentication error detected${NC}"
+                elif echo "$resp" | grep -qi "not found\|404"; then
+                    last_error="Endpoint not found"
+                    echo -e "${RED}  ❌ Endpoint not found${NC}"
+                elif echo "$resp" | grep -qi "rate limit\|too many"; then
+                    last_error="Rate limited"
+                    echo -e "${RED}  ❌ Rate limited${NC}"
+                else
+                    last_error="Invalid response format"
+                fi
+            fi
+        else
+            echo -e "${RED}  ❌ No response received${NC}"
+            last_error="No response"
+            log_message "HostTracker: No response from endpoint" "ERROR"
+        fi
+        
+        echo ""
+    done
+    
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    # Final status
+    if [[ "$found_working" == "true" ]]; then
+        write_status "$ip_dir" "HostTracker" "${GREEN}WORKING" "API endpoint found and responding"
+        log_message "HostTracker: Working endpoint found" "INFO"
+        echo -e "${GREEN}✅ HostTracker API is working!${NC}"
+    else
+        if [[ -z "${HT_KEY:-}" ]]; then
+            write_status "$ip_dir" "HostTracker" "${YELLOW}SKIPPED" "API key not set"
+            log_message "HostTracker: Skipped - API key not set" "WARN"
+            echo -e "${YELLOW}⚠️  HostTracker: API key not set${NC}"
+        else
+            write_status "$ip_dir" "HostTracker" "${RED}ERROR" "${last_error:-Unknown error}"
+            log_message "HostTracker: Error - ${last_error:-Unknown error}" "ERROR"
+            echo -e "${RED}❌ HostTracker: ${last_error:-Unknown error}${NC}"
+        fi
+    fi
+    
+    echo ""
 }
 
