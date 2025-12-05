@@ -115,27 +115,36 @@ generate_suggestions() {
     fi
     
     # Generate suggestions JSON
-    local suggestions_array="["
-    local first=true
-    for i in "${!suggestions[@]}"; do
-        if ! $first; then suggestions_array+=","; fi
-        first=false
-        suggestions_array+=$(jq -n \
-            --arg text "${suggestions[$i]}" \
-            --arg category "${suggestion_categories[$i]}" \
-            '{text: $text, category: $category, priority: "medium"}')
-    done
-    suggestions_array+="]"
-    
+    # Build array using jq properly instead of string concatenation
     local suggestions_json
-    suggestions_json=$(jq -n \
-        --arg ip "$ip" \
-        --argjson suggestions "$suggestions_array" \
-        '{
-            ip: $ip,
-            suggestions: ($suggestions | fromjson),
-            generated_at: (now | todateiso8601)
-        }')
+    if [[ ${#suggestions[@]} -eq 0 ]]; then
+        # No suggestions, create empty array
+        suggestions_json=$(jq -n \
+            --arg ip "$ip" \
+            '{
+                ip: $ip,
+                suggestions: [],
+                generated_at: (now | todateiso8601)
+            }')
+    else
+        # Build suggestions array properly using jq
+        local suggestions_json_array
+        suggestions_json_array=$(for i in "${!suggestions[@]}"; do
+            jq -n \
+                --arg text "${suggestions[$i]}" \
+                --arg category "${suggestion_categories[$i]}" \
+                '{text: $text, category: $category, priority: "medium"}'
+        done | jq -s .)
+        
+        suggestions_json=$(jq -n \
+            --arg ip "$ip" \
+            --argjson suggestions_array "$suggestions_json_array" \
+            '{
+                ip: $ip,
+                suggestions: $suggestions_array,
+                generated_at: (now | todateiso8601)
+            }')
+    fi
     
     echo "$suggestions_json" > "$ip_dir/suggestions.json"
     log_message "Generated ${#suggestions[@]} suggestions for $ip" "INFO"

@@ -44,7 +44,10 @@ generate_table_report() {
         status=$(echo "$result" | cut -d'|' -f2)
         details=$(echo "$result" | cut -d'|' -f3)
 
-        if ((status_code == 1 || status_code == 3)); then
+        # Only count FAILED (status_code=1) as failed, not ERROR (status_code=3)
+        # ERROR means the check couldn't run (network issue, API down, etc.)
+        # FAILED means the check ran but found issues
+        if ((status_code == 1)); then
             ((failed_checks++))
         fi
 
@@ -135,8 +138,9 @@ generate_data_report() {
             details=$(echo "$result" | cut -d'|' -f3)
 
             # Validate status_code is numeric before arithmetic operation
+            # Only count FAILED (status_code=1) as failed, not ERROR (status_code=3)
             if [[ "$status_code" =~ ^[0-9]+$ ]]; then
-                if ((status_code == 1 || status_code == 3)); then
+                if ((status_code == 1)); then
                     ((failed_checks++))
                 fi
             fi
