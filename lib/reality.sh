@@ -61,22 +61,23 @@ test_reality_fingerprint() {
     
     # Generate Reality test report
     local reality_json
+    # Use --arg instead of --argjson for numeric values (compatible with older jq)
     reality_json=$(jq -n \
         --arg ip "$ip" \
-        --argjson tls_errors "$tls_errors" \
+        --arg tls_errors "$tls_errors" \
         --arg mtu_consistent "$mtu_consistent" \
         --arg sni_works "$sni_works" \
         --arg routing_anomalies "$routing_anomalies" \
         --arg ja3 "$ja3_fingerprint" \
         '{
             ip: $ip,
-            tls_handshake: ($tls_errors == 0),
+            tls_handshake: (($tls_errors | tonumber) == 0),
             tls_errors: ($tls_errors | tonumber),
             mtu_consistent: ($mtu_consistent == "true"),
             sni_behavior: ($sni_works == "true"),
             routing_anomalies: ($routing_anomalies == "true"),
             ja3_fingerprint: $ja3,
-            suitable_for_reality: (($tls_errors == 0) and ($mtu_consistent == "true"))
+            suitable_for_reality: ((($tls_errors | tonumber) == 0) and ($mtu_consistent == "true"))
         }')
     
     echo "$reality_json" > "$ip_dir/reality_test.json"
