@@ -211,7 +211,8 @@ process_main_args() {
         $enable_abuseipdb && check_abuseipdb "$ip" "$ip_dir" & pids+=($!)
         $enable_scamalytics && check_scamalytics "$ip" "$ip_dir" & pids+=($!)
         $enable_ripe && check_ripe "$ip" "$ip_dir" & pids+=($!)
-        $enable_host && check_host "$ip" "$ip_dir" & pids+=($!)
+        # Check-Host runs sequentially (not in background) for easier debugging
+        $enable_host && check_host "$ip" "$ip_dir"
         $enable_hosttracker && check_hosttracker "$ip" "$ip_dir" & pids+=($!)
         
         # Additional API checks for scoring

@@ -12,7 +12,7 @@ usage() {
     echo "  -a              Run AbuseIPDB check"
     echo "  -s              Run Scamalytics check"
     echo "  -r              Run RIPE Atlas check"
-    echo "  -c              Run Check-Host ping test"
+    echo "  -c              Run Check-Host tests (ping, http, tcp, dns)"
     echo "  -h              Run HostTracker check"
     echo
     echo "Advanced Features:"
