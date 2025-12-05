@@ -17,6 +17,10 @@ process_main_args() {
     # Reset VPN installation flag (will be set to true only if -v flag is provided)
     ASK_VPN_INSTALL=false
     
+    # Note: ENABLE_* flags are global variables defined in ipcheck
+    # They will be set by -A flag or individual flags (-g, -d, -t, etc.)
+    # We don't reset them here to preserve their state from previous calls
+    
     # Pre-process arguments to handle combined flags
     local processed_args=()
     local i=0
@@ -202,10 +206,14 @@ process_main_args() {
         $enable_hosttracker && check_hosttracker "$ip" "$ip_dir" & pids+=($!)
         
         # Additional API checks for scoring
+        echo "DEBUG: ENABLE_SCORING=$ENABLE_SCORING" >&2
         if $ENABLE_SCORING; then
+            log_message "Running scoring API checks for $ip" "DEBUG"
             check_ipapi "$ip" "$ip_dir" & pids+=($!)
             check_ipregistry "$ip" "$ip_dir" & pids+=($!)
             check_spamhaus "$ip" "$ip_dir" & pids+=($!)
+        else
+            log_message "Scoring disabled, skipping ipapi/ipregistry/spamhaus checks" "DEBUG"
         fi
         
         # Wait for all checks to complete
@@ -219,11 +227,17 @@ process_main_args() {
         # Use set +e to ensure all checks run even if some fail
         set +e
         
+        # Debug: Log which advanced features are enabled
+        echo "DEBUG: Advanced features - CDN=$ENABLE_CDN_CHECK, Scoring=$ENABLE_SCORING, Routing=$ENABLE_ROUTING_CHECK, Port=$ENABLE_PORT_SCAN, Reality=$ENABLE_REALITY_TEST, Usage=$ENABLE_USAGE_HISTORY, Suggestions=$ENABLE_SUGGESTIONS" >&2
+        log_message "Advanced features enabled: CDN=$ENABLE_CDN_CHECK, Scoring=$ENABLE_SCORING, Routing=$ENABLE_ROUTING_CHECK, Port=$ENABLE_PORT_SCAN, Reality=$ENABLE_REALITY_TEST, Usage=$ENABLE_USAGE_HISTORY, Suggestions=$ENABLE_SUGGESTIONS" "DEBUG"
+        
         if $ENABLE_CDN_CHECK; then
+            log_message "Running CDN detection for $ip" "DEBUG"
             detect_cdn "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_SCORING; then
+            log_message "Running scoring for $ip" "DEBUG"
             generate_score_report "$ip" || true
             generate_abuse_report "$ip" "$ip_dir" || true
         fi
@@ -243,22 +257,27 @@ process_main_args() {
         fi
         
         if $ENABLE_ROUTING_CHECK; then
+            log_message "Running routing check for $ip" "DEBUG"
             test_routing "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_PORT_SCAN; then
+            log_message "Running port scan for $ip" "DEBUG"
             scan_ports "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_REALITY_TEST; then
+            log_message "Running reality test for $ip" "DEBUG"
             test_reality_fingerprint "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_USAGE_HISTORY; then
+            log_message "Running usage history check for $ip" "DEBUG"
             check_usage_history "$ip" "$ip_dir" || true
         fi
         
         if $ENABLE_SUGGESTIONS; then
+            log_message "Running suggestions generation for $ip" "DEBUG"
             generate_suggestions "$ip" "$ip_dir" || true
         fi
         
